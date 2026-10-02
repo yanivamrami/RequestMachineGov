@@ -103,3 +103,17 @@ Committed locally (2 commits on the branch). Not pushed; no PR yet.
 **User:** For both the performance and security reviews, keep a LOG file per review type with findings and fixes, as a trail of what was done.
 
 **Assistant:** Created `docs/reviews/PERFORMANCE-LOG.md` and `docs/reviews/SECURITY-LOG.md` (append-only; each run lists scope, commit, findings, status Fixed/Deferred/Accepted/Open, and the fix). Backfilled them with Run 0 (findings on the original code, mostly fixed in Phase 1) and Run 1 (the Phase 1 reviews, plus the traceId issue found during verification). Added the rule to CLAUDE.md and memory. Committed on the Phase 1 branch.
+
+## 14. Angular UI plan delivered and reviewed
+**Agent (Sonnet) → orchestrator:** Wrote `PLAN-FRONTEND.md`: Angular 21 (installed CLI 21.2.11, Node 22), standalone + signals, one `switchMap` search stream, plain HTML/CSS (no Material), dev proxy `/api → :60702` (no CORS), single page component + API service + identity interceptor/bar + `toProblem` error mapper, explicit Search button, cursor stack Prev/Next, 400 field-error mapping / 401 hint / 5xx + traceId, a11y basics, 4 tests, ~70 min.
+
+**Orchestrator review (assistant):** Checked the plan against the API contract and found 3 corrections, applied to the plan:
+1. The backend serializes enums as numbers (no `JsonStringEnumConverter`), but the UI expects strings. Added a one-line backend item to PLAN.md Phase 2 (#6).
+2. A later page can be empty if data changes between clicks; show "No more results".
+3. Format dates with DatePipe in 'UTC', because a real SQL provider returns DateTimes without the `Z` suffix.
+Task T2 → Completed. Plans not committed yet (uncommitted on the phase-1 branch; they belong with Phase 2).
+
+## 15. Build the client while Phase 2 is reviewed
+**User:** PR 1 waits for the user's review. Start an agent to build the client side per the plan while we review the Phase 2 plan.
+
+**Assistant:** Created branch `feat/phase-2-search` (stacked on the Phase 1 branch) and committed the plan files there. Spawned a background Sonnet agent to implement `frontend/` per PLAN-FRONTEND.md, including the review corrections. It writes only inside `frontend/` (no backend, no git), develops against `HttpTestingController` because the Phase 2 API doesn't exist yet, and must report real build and test results.

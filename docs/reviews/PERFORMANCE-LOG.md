@@ -41,3 +41,11 @@ A record of every performance review, its findings, and how each finding was res
 | F-006 | Sev 3 | Likely | Template method calls, no OnPush | Accepted | Zoneless + signals, ~12 cheap calls per pass; OnPush + `computed` if the page grows |
 
 **Also found during Phase 2 test writing:** the keyset paging test used page size 4 with exactly 4 rows per status/type, so it never exercised the Id tie-breaker. Verified by deliberately breaking the tie-breaker (the test still passed). Fixed with page size 3; the same mutation now fails the test.
+
+## Run 3 — Phase 3 delivery: UI redesign (2026-10-02)
+**Scope:** `git diff feat/phase-2-search..feat/phase-3-ui-redesign -- frontend` (PR #3). **Skill:** `performance-reviewer` (Angular checklist). **Report:** [performance-review-phase3-20261002.md](performance-review-phase3-20261002.md)
+
+| ID | Sev | Confidence | Finding | Status | Fix / reason |
+|----|-----|-----------|---------|--------|--------------|
+| F-001 | Sev 3 | Confirmed | Google Fonts stylesheet is render-blocking and needs 2 extra connections | Open, user decision | Self-host the woff2 with `@font-face` (also resolves security F-001) |
+| F-002 | Sev 3 | Likely | `ariaSort()` ×3 per header and `label()` per row in the template | Accepted | Zoneless + ≤ 100 rows, trivial functions; `@let` / pure pipe if the page grows |

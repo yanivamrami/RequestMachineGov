@@ -45,3 +45,13 @@ A record of every security review, its findings, and how each finding was resolv
 **Skill findings:** none at or above the reporting bar.
 **Considered and dropped:** forged cursor within one's own rows (by design); 400-before-401 ordering for anonymous bad requests (no data revealed, documented).
 **Carried forward:** B-S2 (accepted).
+
+## Run 3 — Phase 3 delivery: UI redesign (2026-10-02)
+**Scope:** `git diff feat/phase-2-search..feat/phase-3-ui-redesign -- frontend` (PR #3). **Skill:** `security-review` criteria. The full diff was read directly; given the size of this styling-only change, there was no sub-agent pass. **Report:** [security-review-phase3-20261002.md](security-review-phase3-20261002.md)
+
+| ID | Severity | Finding | Status | Fix |
+|----|----------|---------|--------|-----|
+| F-001 | Low | Google Fonts: visitor IP/User-Agent sent to Google on every load (privacy/GDPR); external CSS with no SRI possible | Open, user decision | Self-host the font file (also fixes performance F-001) |
+
+**Skill findings at or above the bar:** none. Checked: interpolation-only output, attribute bindings (`data-status` is a CSS hook only), no new HTTP, storage or redirects.
+**Carried forward:** B-S2 (accepted).

@@ -253,3 +253,72 @@ Its response cache doesn't fit permission-filtered results: a per-user key gives
 **User:** Add it to cloud-aws.md and push to PR 5.
 
 **Assistant:** Added section 4 "Decision: no AWS API Gateway (ALB + WAF instead)": the role mapping table, cost reasoning, five performance points, and when to add API Gateway. Linked it from the Compute section; renumbered "Left out on purpose" to section 5. Pushed to PR 5.
+
+## 28. README.md and AI-usage.md
+**User:** Write the README.md and AI-usage.md.
+
+**Assistant:** Re-ran the tests first (backend 22/22, frontend 4/4) and checked the README claims against the code (indexes, uppercase "contains", inclusive UTC date range, ports, proxy).
+
+README.md covers:
+- a map of Parts A/B/C;
+- run instructions (backend :60702 + Swagger, frontend :4200 with the proxy, the "Viewing as" panel);
+- tests and the API contract with an example;
+- technology choices and why;
+- the decision: keyset pagination vs OFFSET / OFFSET+COUNT;
+- how Part A meets each requirement, and the assumptions;
+- 7 unfinished items, with next steps tied to review-log IDs;
+- the delivery process.
+
+AI-usage.md answers the spec's 5 questions in the candidate's voice:
+- tools (Claude Code, Sonnet sub-agents, skills);
+- stages;
+- what was changed from AI suggestions;
+- rejected and wrong suggestions (the weak test caught by mutation, the unseekable keyset, the missing traceId, the Part B dedupe bug, the PR 1 misread);
+- verification.
+
+Not committed yet.
+
+## 29. Merge strategy
+**User:** Should we merge all PRs and ask the evaluators to review them as closed PRs, explaining the PR process?
+
+**Assistant:** Recommended yes:
+- `main` only holds the baseline, so a clone shows the original code.
+- Open PR 6, then merge 1→6 bottom-up with merge commits (not squash, which breaks the stack) and keep the branches.
+- You can't approve your own PR; point to docs/reviews/ as the review evidence.
+- Freeze `main` after sending.
+
+## 30. Independent review report
+**User:** Review the standalone code audit report (`docs/reviews/code-review-pr1-pr2-pr3-20261002.md`) and give insights.
+
+**Assistant:** Verified all six findings against the code; all are real.
+- F2 (max date → 500) and F4 (stale rows after an identity switch) are the priorities.
+- F1: piscina needs an npm override, since even the latest @angular/build pins 5.2.0.
+- F5 contrast confirmed at 1.57:1. F6 confirmed.
+- F3 duplicates our accepted Run 2 F-001: keep it accepted but fix the README's "constant page cost" claim.
+- The 404-ProblemDetails comment was untrue.
+Proposed PR 6.
+
+## 31. PR 6: review fixes, plus the microservices diagram request
+**User:** Go ahead with PR 6, then add the independent review step to AI-usage.md (the reviewer was GPT-6 Astra). Mid-turn: where is the microservices architecture diagram? Add it as an HTML file to the relevant PR.
+
+**Assistant:** On `feat/phase-6-review-fixes`, every change annotated [OLD]/[NEW]:
+- F2: skip the upper bound when `createdTo == DateOnly.MaxValue`, plus a regression test.
+- F4: the identity effect clears rows/hasMore/cursor/errors, plus a spec test.
+- F1: npm `overrides` piscina 5.3.2; audit → 0.
+- F5: `--control-border` at 3.6:1, computed.
+- F6: the pager wraps, with tighter spacing on phones.
+- 404 → `UseStatusCodePages`.
+
+Verification:
+- backend 23/23, frontend 5/5, build OK;
+- both new tests fail with their fix removed;
+- Production HTTP checks: max date 200, 404/401 ProblemDetails;
+- 320px browser check: the pager fits.
+
+Docs:
+- README: F3 wording qualified, concurrent-paging assumption, override rationale, test counts, PR 6 and the external review.
+- Review logs: Run 4 (external, GPT-6 Astra) and Run 5 (PR 6 self-review).
+- AI-usage.md: new section 6 on the independent review.
+
+Next: the standalone microservices architecture HTML, added to PR 4.
+- Microservices diagram: added `docs/architecture/microservices-architecture.html` to PR 4 (`feat/phase-4-architecture`). It shows services with their own DBs, the gateway, the broker, and sync/event/data flows with highlighting, plus an API/events table. It is linked from microservices.md and the README. Checked in the browser at 1400px (fixed a gateway text overflow and a label overlap). Merged PR 4 → PR 5 → PR 6 branches with merge commits, so the stack stays consistent.

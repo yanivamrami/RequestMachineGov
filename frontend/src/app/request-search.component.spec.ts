@@ -3,6 +3,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { RequestSearchComponent } from './request-search.component';
+// [NEW] Needed by the identity-switch test (review F4).
+import { IdentityService } from './identity.service';
 
 function setup() {
   TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
@@ -52,6 +54,25 @@ describe('RequestSearchComponent', () => {
     expect(c.pageIndex()).toBe(0);
     expect(r.request.params.has('cursor')).toBe(false);
     page(r, null);
+    http.verify();
+  });
+
+  // [NEW] Review F4 regression: switching identity must not leave the previous identity's rows on screen
+  // while the new request is pending.
+  it('clears the previous identity rows immediately when the identity changes', () => {
+    const { c, http, expectReq } = setup();
+    const row = { id: 1, requestNumber: 'REQ-PRIVATE-USER1', customerId: 1, ownerId: 1, assignedToUserId: null, status: 'New', requestType: 'General', createdAt: '2026-01-01T00:00:00Z' };
+    expectReq().flush({ items: [row], nextCursor: 'c1', hasMore: true });
+    expect(c.rows().length).toBe(1);
+
+    const id = TestBed.inject(IdentityService);
+    id.userId.set(id.userId() === 2 ? 3 : 2); // any different user
+    TestBed.tick(); // run the identity effect
+    const pending = expectReq(); // new search is in flight, not answered yet
+    expect(c.rows()).toEqual([]);
+    expect(c.hasMore()).toBe(false);
+
+    pending.flush({ items: [], nextCursor: null, hasMore: false });
     http.verify();
   });
 

@@ -87,7 +87,11 @@ public sealed class RequestRepository : IRequestRepository
             query = query.Where(x => x.CreatedAt >= fromUtc);
         }
 
-        if (q.CreatedTo is { } to)
+        // [OLD] Replaced (review F2): createdTo=9999-12-31 is a valid DateOnly, but AddDays(1) overflowed it, so the
+        // request returned a 500 instead of results.
+        // if (q.CreatedTo is { } to)
+        // [NEW] DateOnly.MaxValue as the upper bound excludes nothing, so skip the filter instead of computing max + 1 day.
+        if (q.CreatedTo is { } to && to < DateOnly.MaxValue)
         {
             var toExclusiveUtc = to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
             query = query.Where(x => x.CreatedAt < toExclusiveUtc);

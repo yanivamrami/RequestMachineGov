@@ -48,6 +48,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// [NEW] Review note: responses that never reach a controller (e.g. 404 for an unknown route) had an empty body,
+// contradicting the "every error is ProblemDetails" comment above. UseStatusCodePages + AddProblemDetails writes
+// a ProblemDetails body for any empty 4xx/5xx response.
+app.UseStatusCodePages();
+
 app.MapControllers();
 
 app.Run();

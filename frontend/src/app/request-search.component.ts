@@ -95,10 +95,26 @@ export class RequestSearchComponent {
       });
 
     // [NEW] Identity change (and first render) -> fresh search from page 1 with the applied filters.
+    // [OLD] Replaced (review F4): restart() only reset paging, so the previous identity's rows stayed readable under
+    // the new "Viewing as" label until the new response arrived (longer if that request stalled or failed).
+    // effect(() => {
+    //   this.identity.userId();
+    //   this.identity.isAdmin();
+    //   untracked(() => this.restart());
+    // });
+    // [NEW] Rows belong to an identity: clear them (and paging/error state) the moment the identity changes,
+    // before the new search starts. Ordinary paging still keeps rows on screen while the next page loads.
     effect(() => {
       this.identity.userId();
       this.identity.isAdmin();
-      untracked(() => this.restart());
+      untracked(() => {
+        this.rows.set([]);
+        this.hasMore.set(false);
+        this.nextCursor = null;
+        this.error.set(null);
+        this.serverErrors.set({});
+        this.restart();
+      });
     });
   }
 

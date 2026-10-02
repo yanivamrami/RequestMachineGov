@@ -27,8 +27,25 @@ No new features. The current `GET /api/requests` keeps its behavior, but correct
 | 1.3 | Missing or invalid `X-User-Id` → **401**, instead of silently acting as user 1 | `RequestsController` | silent impersonation is a security bug |
 | 1.4 | Register `RequestService` in `Program.cs`, not in Infrastructure | `DependencyInjection.cs`, `Program.cs` | Infrastructure shouldn't wire up Application services |
 | 1.5 | Declare indexes with `HasIndex` (see the index list below) | `RequestsDbContext.OnModelCreating` | ignored by the in-memory provider, but they become a migration once a real DB replaces it |
-| 1.6 | Global error handling: `AddProblemDetails()` + `UseExceptionHandler()` | `Program.cs` | unhandled errors return a ProblemDetails 500 without leaking a stack trace |
+| 1.6 | Global error handling, by environment (see below) | `Program.cs` | production never leaks exception details; development shows them for debugging |
 | 1.7 | Rewrite tests against the real `RequestRepository` + EF in-memory (one DB per test); remove `FakeRequestRepository` | `tests/` | the fake would never exercise the real query, and that query is where the permission rule now lives |
+
+### 1.6 Error handling, by environment
+
+```csharp
+builder.Services.AddProblemDetails();          // all error responses use the RFC 7807 shape
+...
+if (!app.Environment.IsDevelopment())
+    app.UseExceptionHandler();                 // Production: generic 500 { type, title, status, traceId }
+// Development: ASP.NET Core enables the Developer Exception Page automatically —
+// full exception + stack trace (returned as ProblemDetails JSON for API clients).
+```
+
+- **Production:** the response body contains no exception message, stack trace, SQL, or connection details. It includes only the `traceId`, which correlates with the server log. The exception itself is logged server-side by the exception handler middleware.
+- **Development:** full details, to make debugging faster.
+- **Safe default:** if `ASPNETCORE_ENVIRONMENT` is missing, ASP.NET Core falls back to Production (fail closed). Only `launchSettings.json` sets Development, so details never show unless explicitly enabled.
+- **400 validation errors** are returned in every environment. They list only the invalid query fields the caller sent, nothing internal.
+- **In the code:** this behavior is explained in a `[NEW]` comment in `Program.cs`, per the change-annotation rule.
 
 Header-based identity stays (the spec provides it) and is marked `ponytail:` as a stand-in for JWT claims. Documented in the README.
 

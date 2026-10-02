@@ -65,3 +65,41 @@ Added a short `.gitignore` (bin/obj, node_modules/dist, .DS_Store, .claude/setti
 **User:** Approved the baseline commit, keeping the logs in the repo. Do not start implementation yet.
 
 **Assistant:** Committed the baseline on `main` (original code + `.gitignore`, `CLAUDE.md`, `PLAN.md`, `SESSION-LOG.md`). No remote yet, no branches created, no code changes.
+
+## 9. Change-annotation rule
+**User:** Every code change must keep the old code commented out with an explanation of why it is replaced, followed by the new code with a short explanation of why it is there and how it fixes the bug or meets the requirement.
+
+**Assistant:** Defined the format `// [OLD] Replaced: <why>` + commented old code, then `// [NEW] <why better>` + new code. New files get a `[NEW]` header; deleted code stays as an `[OLD]` block; `//` comments only; the tags are greppable for cleanup later. Added it to `CLAUDE.md` working rules and to memory. No code changes.
+
+## 10. Error handling by environment
+**User:** For the global error handling task (1.6): production must never return sensitive data or exception details; development should show exceptions to help debugging. This must be noted in the code as well.
+
+**Assistant:** Updated PLAN.md 1.6: `AddProblemDetails()` everywhere; `UseExceptionHandler()` only outside Development, which gives a generic 500 ProblemDetails with only a traceId and logs the exception on the server. Development uses the built-in Developer Exception Page (full exception + stack trace as ProblemDetails JSON). Fails closed: if the environment is unset, it defaults to Production. 400 validation errors list only the caller's invalid fields. The behavior will be documented in a `[NEW]` comment in Program.cs. No code changed yet.
+
+## 11. Phase 1 implementation
+**User:** Keep the `[OLD]` comments in the final submission; start Phase 1; the repo is published (origin: github.com/yanivamrami/RequestMachineGov).
+
+**Assistant:** On branch `fix/phase-1-current-code`:
+- Added `CandidateTest.sln`.
+- `IRequestRepository.GetAllAsync` → `GetVisibleAsync(userId, isAdmin)`: permission WHERE, newest-first order (Id tie-breaker), `.Select` to DTO, all in one query. `RequestService` delegates to it.
+- Controller: `[FromHeader]` identity (visible in Swagger); a missing/invalid/non-positive `X-User-Id` → 401.
+- Service registration moved to Program.cs.
+- 5 indexes plus `RequestNumber` max length 20, unique.
+- `AddProblemDetails` with traceId; `UseExceptionHandler` outside Development only.
+- Tests rewritten against the real repository + EF in-memory (3 tests: admin, exact visible set incl. null assignee, ordering).
+Every change is annotated `[OLD]`/`[NEW]`.
+Verified: build clean, 3/3 tests pass. Smoke tests in Production and Development: 401 without a header, user 1 = 186 rows, admin = 500. A temporary throwing endpoint confirmed Production returns a generic 500 and Development the full exception, with the exception logged on the server in both. That check found the production 500 missing `traceId`, fixed with `CustomizeProblemDetails`.
+Reviews (saved in `docs/reviews/`):
+- Performance: F-001 unbounded result (deferred to Phase 2, by plan), F-002 the OR predicate's index usage needs verification on a real DB, F-003 index write cost (low).
+- Security: no findings ≥ 8 confidence; the known pre-existing risk is that `X-Is-Admin` can be spoofed.
+Committed locally (2 commits on the branch). Not pushed; no PR yet.
+
+## 12. Orchestrator: Angular UI planning agent
+**User:** `/agent-orchestrator` — while the main agent runs Phase 1, start another agent to plan the Angular UI per the spec.
+
+**Assistant:** Phase 1 was already complete (committed locally, awaiting push/PR approval). Created a task list (T1 Phase 1: Review; T2 Angular UI plan: Delegated; T3 Phase 2: Pending). Spawned a background Sonnet agent (well-defined planning task, reviewed by the orchestrator) to write `PLAN-FRONTEND.md` only, with no code or installs. Its brief: plan against the Phase 2 API contract, covering the UI library choice, dev proxy vs CORS, components, filter validation, sorting, the cursor-stack Prev/Next, loading/error/empty states, request cancellation, a user/admin header control, accessibility, 3–5 tests, and effort ≤ ~75 min.
+
+## 13. Review trail logs
+**User:** For both the performance and security reviews, keep a LOG file per review type with findings and fixes, as a trail of what was done.
+
+**Assistant:** Created `docs/reviews/PERFORMANCE-LOG.md` and `docs/reviews/SECURITY-LOG.md` (append-only; each run lists scope, commit, findings, status Fixed/Deferred/Accepted/Open, and the fix). Backfilled them with Run 0 (findings on the original code, mostly fixed in Phase 1) and Run 1 (the Phase 1 reviews, plus the traceId issue found during verification). Added the rule to CLAUDE.md and memory. Committed on the Phase 1 branch.

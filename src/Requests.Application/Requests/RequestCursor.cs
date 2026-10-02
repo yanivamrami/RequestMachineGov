@@ -4,12 +4,11 @@ using Requests.Domain.Entities;
 
 namespace Requests.Application.Requests;
 
-// [NEW] Keyset-pagination bookmark: "the last row the client saw". The next page is WHERE (sortKey, Id) is after it,
-// which is an index seek at any depth (OFFSET would read and discard every skipped row) and stays stable when rows
-// are added or removed between clicks.
-// It stores all four sortable values of the last row, so every sort can use the same cursor shape (no per-type encoding).
-// Hex-encoded JSON: opaque to clients and URL-safe without escaping (base64's + / = break in query strings).
-// Not signed on purpose: a tampered cursor only moves the start position inside the caller's own permission-filtered rows.
+// Keyset-pagination bookmark: the last row the client saw. The next page starts after its (sort key, Id),
+// which is an index seek at any depth (OFFSET reads and discards every skipped row) and stays stable when rows change.
+// - Holds all four sortable values, so one cursor shape serves every sort.
+// - Hex-encoded JSON: opaque and URL-safe without escaping (base64's + / = need escaping in query strings).
+// - Not signed on purpose: tampering only moves the start position within the caller's own permitted rows.
 public sealed record RequestCursor(
     RequestSortBy SortBy,
     SortDirection SortDir,

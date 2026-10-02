@@ -6,7 +6,7 @@ The full prompt-by-prompt record is in [SESSION-LOG.md](SESSION-LOG.md). This fi
 
 - **Claude Code** (desktop app, Claude Opus model) as the main assistant: reading the spec and repo, planning, writing code, running builds and tests, git and PRs.
 - **GPT-6 Astra**, a different AI model used as an **independent reviewer** of PRs 1–3. A second model with no stake in the code catches what the authoring model's own reviews miss (see section 6).
-- **Claude sub-agents (Sonnet)**, started from the main session for two well-bounded tasks: writing the Angular UI plan (`PLAN-FRONTEND.md`), and implementing `frontend/` from that plan. The main session reviewed both before I accepted them.
+- **Claude sub-agents (Sonnet)**, started from the main session for two well-bounded tasks: writing the Angular UI plan ([docs/plans/PLAN-FRONTEND.md](docs/plans/PLAN-FRONTEND.md)), and implementing `frontend/` from that plan. The main session reviewed both before I accepted them.
 - **Claude Code skills** (packaged instructions):
   - `ponytail`: simplest code that works, without simplifying away validation, security or performance.
   - `performance-reviewer` and `security-review`: run after every feature; results in `docs/reviews/`.
@@ -15,14 +15,14 @@ The full prompt-by-prompt record is in [SESSION-LOG.md](SESSION-LOG.md). This fi
 - **Project rules I set for the AI** (`CLAUDE.md` + persistent memory):
   - log every turn to `SESSION-LOG.md`;
   - run both reviews on every delivery;
-  - annotate every change with `// [OLD]` (why it was wrong) and `// [NEW]` (why it's better), so I can explain every line.
+  - annotate every change with `// [OLD]` (why it was wrong) and `// [NEW]` (why it's better), so I can explain every line. After all PRs were merged, these were replaced with concise what/why comments (PR 7); the merged PRs keep the before/after.
 
 ## 2. At which stages?
 
 | Stage | How AI was used |
 |---|---|
 | Understanding | Summarized the Hebrew spec and audited the provided repo. It found 6 problems: whole-table load, no paging, spoofable headers / missing-user default, no indexes, wrong DI layer, tests tied to `GetAllAsync`. |
-| Design / planning | Proposed options for millions of rows. **I made the decisions**: keyset paging, no total count, "contains" with a 3-character minimum, keep the in-memory DB. It then wrote `PLAN.md` / `PLAN-FRONTEND.md` from those decisions. |
+| Design / planning | Proposed options for millions of rows. **I made the decisions**: keyset paging, no total count, "contains" with a 3-character minimum, keep the in-memory DB. It then wrote the plans in [docs/plans/](docs/plans/) from those decisions. |
 | Code | Phase 1 fixes, Phase 2 search backend, the Angular client (sub-agent), the UI redesign. |
 | Tests | 22 backend tests (keyset walk for all 8 sort/direction combinations, filters, validation) and 4 frontend tests. |
 | Review | Performance and security review after each phase; findings logged with a status and a fix. |
@@ -69,7 +69,8 @@ Wrong suggestions that were caught:
   - Production vs Development error output.
 - **Browser checks** of the UI at 1280px and 375px (data, empty, validation states); both architecture HTML pages; all 7 failure scenarios in the animation end in a clean state.
 - **Performance and security reviews** after each phase, with every finding tracked to Fixed / Deferred / Accepted / Open in `docs/reviews/`.
-- **My own review** of every PR. The `[OLD]`/`[NEW]` annotations exist so that I can explain each change myself, not just trust the AI.
+- **My own review** of every PR. The `[OLD]`/`[NEW]` annotations in PRs 1–6 exist so that I can explain each change myself, not just trust the AI.
+- **Comment cleanup (PR 7) verified mechanically:** with all comments stripped, every one of the 32 changed files is identical to the code before the cleanup, so only comments changed.
 
 ## 6. Independent review by a second AI model (GPT-6 Astra)
 

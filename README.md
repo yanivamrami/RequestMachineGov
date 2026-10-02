@@ -10,6 +10,7 @@ A search API and an Angular UI for Requests (Part A), a microservices design wit
 | C — Cloud deployment (AWS) | [docs/architecture/cloud-aws.md](docs/architecture/cloud-aws.md) + diagram [cloud-aws.html](docs/architecture/cloud-aws.html) |
 | AI usage | [AI-usage.md](AI-usage.md) |
 | Review trail | [docs/reviews/](docs/reviews/): performance & security logs and reports per phase |
+| Plans | [docs/plans/](docs/plans/): the backend plan (`PLAN.md`) and the Angular UI plan (`PLAN-FRONTEND.md`) written before coding |
 
 The `.html` diagrams are self-contained. Open them directly in a browser; no server needed.
 
@@ -133,12 +134,42 @@ Parts B and C each have their own decision section: the transactional outbox, EC
 4. **Self-host the Figtree font** instead of loading it from Google Fonts. This fixes a render-blocking request and a privacy finding. Left open as the user's design decision.
 5. **More tests:** an API-level integration test (`WebApplicationFactory`) for 400/401, and a frontend test for request cancellation.
 6. **Parts B and C are designs only.** The next step would be a Notifications service with MassTransit outbox/inbox on RabbitMQ via docker-compose to demonstrate the failure scenarios for real.
-7. **Cleanup before final submission:** the `// [OLD]` / `// [NEW]` annotations are kept on purpose so every change can be explained in the interview (`grep -rn "\[OLD\]"`). They would be removed in a real codebase.
 
 ## How the work was delivered
 
-- **Stacked PRs:** baseline on `main` → PR 1 Phase 1 fixes → PR 2 search backend + Angular client → PR 3 UI redesign → PR 4 Part B → PR 5 Part C → PR 6 fixes from an independent code review + README/AI-usage.
-- **Every code change is annotated:** the old code is kept commented out with why it was wrong (`// [OLD]`), and the new code is commented with why it is better (`// [NEW]`).
+The work was delivered as **7 pull requests**, each building on the previous one and merged into `main` in order:
+
+| PR | Contains |
+|---|---|
+| [#1](https://github.com/yanivamrami/RequestMachineGov/pull/1) | Phase 1: fixes to the code as received (DB-side permission filter, 401 for missing identity, indexes, error handling) |
+| [#2](https://github.com/yanivamrami/RequestMachineGov/pull/2) | Phase 2: search backend (filters, sorting, keyset paging, validation) + Angular client |
+| [#3](https://github.com/yanivamrami/RequestMachineGov/pull/3) | Phase 3: UI redesign |
+| [#4](https://github.com/yanivamrami/RequestMachineGov/pull/4) | Part B: microservices architecture + diagrams |
+| [#5](https://github.com/yanivamrami/RequestMachineGov/pull/5) | Part C: AWS cloud deployment + diagram |
+| [#6](https://github.com/yanivamrami/RequestMachineGov/pull/6) | Fixes from an independent code review + README and AI-usage |
+| [#7](https://github.com/yanivamrami/RequestMachineGov/pull/7) | Comment cleanup + plans moved to `docs/plans/` |
+
+### Reading the PRs: `[OLD]` / `[NEW]` comments
+
+**PRs 1–6 contain `[OLD]` and `[NEW]` comments on purpose.** They make each change understandable to a reviewer who doesn't know the code, without switching between the diff and the original file:
+
+```csharp
+// [OLD] Replaced: <why the old code was wrong or insufficient>
+// <the old code, kept as a comment>
+// [NEW] <what the new code does and how it fixes the problem>
+<the new code>
+```
+
+- `[OLD]` keeps the replaced code in place, with the reason it was wrong (for example: *"materializes the whole table before any filtering happens"*).
+- `[NEW]` explains what the new code does and why it is better.
+- A brand-new file starts with a single `[NEW]` line saying why the file exists.
+
+To follow a change, open the PR's **Files changed** tab and read the `[OLD]` → `[NEW]` pairs from top to bottom.
+
+**This is a review aid for this exercise, not a development practice.** In a normal workflow, the version history and the PR diff already hold the old code, and commented-out code in `main` is noise. So PR #7 removed every annotation after the review: the final `main` branch has only short what-and-why comments. A script confirmed that PR #7 changed comments only (the code is identical with comments stripped). The full before/after of every change remains in the merged PRs 1–6.
+
+### Process
+
 - An **independent code review** of PRs 1–3 by a different AI model ([report](docs/reviews/code-review-pr1-pr2-pr3-20261002.md)) found 6 issues our own reviews had missed. All are fixed or explicitly accepted in PR 6.
 - After each feature I ran a performance and a security review. Findings and their status (Fixed/Deferred/Accepted/Open) are in [docs/reviews/](docs/reviews/).
 - [SESSION-LOG.md](SESSION-LOG.md) records every prompt and response of the AI-assisted session.

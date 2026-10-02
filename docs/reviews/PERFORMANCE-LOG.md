@@ -69,3 +69,6 @@ A record of every performance review, its findings, and how each finding was res
 - The identity clear makes no extra HTTP calls, because `switchMap` still cancels the previous request.
 - `UseStatusCodePages` only acts on empty error responses.
 - CSS budget: see Run 4 note.
+
+## Run 6 — PR #7: comment cleanup (2026-10-02)
+**Scope:** `git diff main..chore/clean-comments`: 32 source/test/doc files. **Result:** no review needed. A script stripped all comments from each file before and after, and the remaining code is identical in all 32. Behavior is unchanged; backend 23/23 and frontend 5/5 tests pass and the build is OK.

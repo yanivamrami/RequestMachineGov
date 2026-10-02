@@ -1,4 +1,4 @@
-// [NEW] The search page: filter form, sortable table, cursor-stack pager and loading/empty/error states.
+// Search page: filter form, sortable table, cursor-stack pager and loading/empty/error states.
 import { DatePipe } from '@angular/common';
 import { Component, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -8,7 +8,7 @@ import { IdentityService } from './identity.service';
 import { Problem, toProblem } from './problem';
 import { Page, RequestDto, RequestType, RequestsApi, SearchParams, SortBy, SortDir, Status } from './requests.api';
 
-// [NEW] Mirrors the backend rule createdFrom <= createdTo. yyyy-MM-dd strings compare correctly as text.
+// Mirrors the backend rule createdFrom <= createdTo; yyyy-MM-dd strings compare correctly as text.
 export function dateRangeValidator(g: AbstractControl): ValidationErrors | null {
   const from = g.get('createdFrom')?.value;
   const to = g.get('createdTo')?.value;
@@ -31,7 +31,7 @@ export class RequestSearchComponent {
   readonly statuses: Status[] = ['New', 'InProgress', 'Completed', 'Cancelled'];
   readonly types: RequestType[] = ['General', 'Legal', 'Payment', 'Appeal'];
   readonly sizes = [10, 25, 50, 100];
-  // [NEW] Exactly the backend sort whitelist is sortable; the other columns have no sortBy.
+  // Only the backend's sortable fields get a sortBy.
   readonly cols: { label: string; sortBy?: SortBy }[] = [
     { label: 'Id' },
     { label: 'Request number', sortBy: 'requestNumber' },
@@ -43,7 +43,7 @@ export class RequestSearchComponent {
     { label: 'Created (UTC)', sortBy: 'createdAt' },
   ];
 
-  // [NEW] Client validators mirror the backend (UX only; backend stays authoritative). minLength/maxLength ignore empty values.
+  // Client validators mirror the backend for fast feedback; the backend stays authoritative. min/maxLength ignore empty values.
   readonly form = new FormGroup(
     {
       requestNumber: new FormControl('', { nonNullable: true, validators: [Validators.minLength(3), Validators.maxLength(20)] }),
@@ -64,15 +64,15 @@ export class RequestSearchComponent {
   readonly error = signal<{ text: string; traceId?: string } | null>(null);
   readonly serverErrors = signal<Record<string, string>>({}); // 400 field errors, keyed by lower-cased control name
 
-  // [NEW] stack[i] = cursor used to fetch page i (stack[0] = null). Previous re-fetches stack[i-1]; backend has no backward keyset.
+  // stack[i] = cursor that fetched page i (stack[0] = null). Previous re-fetches stack[i-1], since keyset only goes forward.
   private stack: (string | null)[] = [null];
   private nextCursor: string | null = null;
   private applied: Filters = this.snapshot(); // filters as of the last Search, so editing the form doesn't change paging
   private load$ = new Subject<string | null>();
 
   constructor() {
-    // [NEW] switchMap cancels the in-flight request on a newer load, so a stale response never overwrites a newer one.
-    // catchError is INSIDE the inner pipe so an HTTP error doesn't complete the outer stream.
+    // switchMap cancels the in-flight request when a newer one starts, so a stale response never overwrites a newer one.
+    // catchError sits inside the inner pipe so an HTTP error doesn't end the outer stream.
     this.load$
       .pipe(
         tap(() => this.loading.set(true)),
@@ -94,16 +94,8 @@ export class RequestSearchComponent {
         } else this.showProblem(r);
       });
 
-    // [NEW] Identity change (and first render) -> fresh search from page 1 with the applied filters.
-    // [OLD] Replaced (review F4): restart() only reset paging, so the previous identity's rows stayed readable under
-    // the new "Viewing as" label until the new response arrived (longer if that request stalled or failed).
-    // effect(() => {
-    //   this.identity.userId();
-    //   this.identity.isAdmin();
-    //   untracked(() => this.restart());
-    // });
-    // [NEW] Rows belong to an identity: clear them (and paging/error state) the moment the identity changes,
-    // before the new search starts. Ordinary paging still keeps rows on screen while the next page loads.
+    // On identity change (and first render): clear the previous identity's rows and state at once, then search
+    // from page 1. Ordinary paging keeps rows on screen while the next page loads.
     effect(() => {
       this.identity.userId();
       this.identity.isAdmin();
@@ -118,7 +110,7 @@ export class RequestSearchComponent {
     });
   }
 
-  // [NEW] Search / Reset / sort / pageSize / identity all funnel here: stack reset + page 0, no cursor.
+  // Search, Reset, sort, page size and identity changes all restart from page 1.
   private restart() {
     this.stack = [null];
     this.pageIndex.set(0);
@@ -166,7 +158,7 @@ export class RequestSearchComponent {
     this.restart();
   }
 
-  // [NEW] Human label for a status enum value ('InProgress' -> 'In progress'); the API value stays unchanged.
+  // Display label for a status ('InProgress' -> 'In progress'); the API value is unchanged.
   label(s: Status) {
     return s === 'InProgress' ? 'In progress' : s;
   }
@@ -198,12 +190,12 @@ export class RequestSearchComponent {
     const entries = Object.entries(p.fieldErrors);
     this.serverErrors.set(Object.fromEntries(entries.filter(([k]) => known.has(k))));
     const other = entries.filter(([k]) => !known.has(k)).map(([, m]) => m);
-    // [NEW] Field errors show beside the field; anything unmatched (e.g. bad cursor) goes to the banner.
+    // Field errors show beside their field; anything unmatched (e.g. a bad cursor) goes to the banner.
     const text = p.kind !== 'validation' ? p.message : other.length ? other.join(' ') : entries.length ? 'Please fix the highlighted fields.' : p.message;
     this.error.set({ text, traceId: p.traceId });
   }
 
-  // [NEW] Message for a field: client rule (after touch) first, then the server's 400 message.
+  // A field's message: the client rule (once touched) first, then the server's 400 message.
   err(name: 'requestNumber' | 'createdFrom' | 'createdTo' | 'requestType' | 'status' | 'pageSize'): string | null {
     const c = this.form.controls[name];
     if (c.touched && c.errors?.['minlength']) return 'Enter at least 3 characters.';

@@ -1,15 +1,6 @@
-/* [NEW] Global minimal styles: layout, visible focus, sr-only helper for a11y text. */
-/* [OLD] Replaced: empty CLI placeholder comment. */
-/* [OLD] Replaced (redesign): browser-default look, hard-coded hex colors, no shared tokens.
-body { font-family: system-ui, sans-serif; margin: 1rem auto; max-width: 70rem; padding: 0 1rem; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-:focus-visible { outline: 2px solid #1a56db; outline-offset: 2px; }
-.identity { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
-.identity input[type='number'] { width: 5rem; }
-.hint { color: #555; font-size: .85rem; }
-*/
-/* [NEW] "Warm & calm": warm paper background, white cards, one deep-teal accent for actions and selection.
-   All colors are tokens here so the components never hard-code a hex value. */
+/* Global styles: design tokens, base layout, shared controls, visible focus and the sr-only helper.
+   "Warm & calm": warm paper background, white cards, one deep-teal accent. All colors are tokens,
+   so components never hard-code a value. */
 :root {
   --paper: oklch(97.6% .008 80);
   --surface: oklch(99.6% .003 80);
@@ -17,9 +8,8 @@ body { font-family: system-ui, sans-serif; margin: 1rem auto; max-width: 70rem; 
   --surface-hover: oklch(97.8% .012 190);
   --line: oklch(91.5% .01 75);
   --line-strong: oklch(85% .014 70);
-  /* [NEW] Review F5: input/select/ghost-button borders are the only cue that marks a control's boundary, so they need
-     >= 3:1 non-text contrast (WCAG 1.4.11). --line-strong measured 1.57:1 against --surface; this is ~3.6:1
-     (3.4:1 on --surface-2). Decorative card separators keep the lighter --line tokens. */
+  /* Control borders are the only cue marking a field's edge, so they need >= 3:1 contrast (WCAG 1.4.11):
+     ~3.6:1 on --surface, 3.4:1 on --surface-2. Decorative separators keep the lighter --line tokens. */
   --control-border: oklch(62% .014 70);
   --ink: oklch(24% .02 55);
   --ink-2: oklch(42% .018 60);
@@ -71,8 +61,6 @@ h1 { margin: 0; font-size: 2rem; line-height: 1.15; font-weight: 700; letter-spa
 input:not([type='checkbox']), select {
   width: 100%; height: 2.5rem; padding: 0 .75rem;
   font: inherit; font-size: .9375rem; color: var(--ink);
-  /* [OLD] Replaced (review F5): background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; */
-  /* [NEW] Control border meets 3:1 so fields are identifiable for low-vision users. */
   background: var(--surface); border: 1px solid var(--control-border); border-radius: 8px;
   transition: border-color .15s ease-out, box-shadow .15s ease-out;
 }
@@ -88,8 +76,6 @@ input:not([type='checkbox']):focus, select:focus { outline: none; border-color: 
 }
 .btn-primary { background: var(--accent); color: oklch(99% 0 0); border: 1px solid var(--accent); min-width: 7rem; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
-/* [OLD] Replaced (review F5): .btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); } */
-/* [NEW] Same 3:1 control border as inputs. */
 .btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--control-border); }
 .btn-ghost:hover:not(:disabled) { border-color: var(--ink-3); background: var(--surface-2); }
 .btn:disabled { cursor: not-allowed; opacity: .5; }

@@ -1,10 +1,10 @@
-// [NEW] Single mapper from HttpErrorResponse (RFC 7807 ProblemDetails) to what the UI needs.
+// Maps an HttpErrorResponse (RFC 7807 ProblemDetails) to what the UI shows.
 import { HttpErrorResponse } from '@angular/common/http';
 
 export interface Problem {
   kind: 'validation' | 'auth' | 'server' | 'network';
   message: string;
-  fieldErrors: Record<string, string>; // keys lower-cased: backend casing (RequestNumber vs requestNumber) is unverified
+  fieldErrors: Record<string, string>; // keys lower-cased so the backend's "RequestNumber" matches the form's "requestNumber"
   traceId?: string;
 }
 

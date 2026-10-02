@@ -1,18 +1,11 @@
-// [NEW] Small bar to switch the demo user / admin flag; the search page reacts to the signals.
+// "Viewing as" panel to switch the demo user and admin flag; the search page reacts to these signals.
 import { Component, inject } from '@angular/core';
 import { IdentityService } from './identity.service';
 
 @Component({
   selector: 'app-identity-bar',
   template: `
-    <!-- [OLD] Replaced (redesign): loose inline row of controls that looked like part of the filters. -->
-    <!-- <div class="identity"> -->
-    <!--   <label for="uid">User id</label> -->
-    <!--   <input id="uid" ... /> -->
-    <!--   <label><input type="checkbox" ... /> Admin</label> -->
-    <!--   <span class="hint">Demo identity only, not real authentication.</span> -->
-    <!-- </div> -->
-    <!-- [NEW] Grouped "Viewing as" panel; same inputs and bindings. (change) not (input): one request per committed edit, not per keystroke -->
+    <!-- (change), not (input): one search per committed edit, not per keystroke. -->
     <div class="identity" role="group" aria-labelledby="identity-title">
       <div class="identity-row">
         <span id="identity-title" class="identity-title">Viewing as</span>

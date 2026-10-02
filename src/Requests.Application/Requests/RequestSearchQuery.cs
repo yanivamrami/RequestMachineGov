@@ -3,10 +3,9 @@ using Requests.Domain.Entities;
 
 namespace Requests.Application.Requests;
 
-// [NEW] Search criteria, bound from the query string (GET /api/requests?status=New&status=InProgress&...).
-// GET + query string because search is a read: safe to retry, cacheable, linkable. A GET body is not reliably supported.
-// Validation lives here as data annotations + IValidatableObject, so [ApiController] returns a 400 ProblemDetails
-// with per-field errors before the action runs. No validation library needed.
+// Search criteria from the query string (GET /api/requests?status=New&status=InProgress&...).
+// A GET because search is a read: safe to retry, cacheable, linkable; GET bodies aren't reliably supported.
+// Data annotations + IValidatableObject let [ApiController] reject bad input with a per-field 400 before the action runs.
 public sealed class RequestSearchQuery : IValidatableObject
 {
     // Partial ("contains") match. Min 3 chars keeps the leading-wildcard LIKE selective; the character whitelist

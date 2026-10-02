@@ -6,33 +6,27 @@ using Requests.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// [OLD] Replaced: enums were serialized as numbers ("status": 2), unreadable and inconsistent with the query string (status=InProgress).
-// builder.Services.AddControllers();
-// [NEW] Enums as names in JSON ("status": "InProgress"), matching the query-string values and the frontend types.
+// Enums as names ("status": "InProgress"), matching the query-string values and the frontend types.
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure();
 
-// [NEW] Application services are registered here, in the composition root (moved out of Infrastructure).
+// Application services are registered in the composition root; Infrastructure only registers its own types.
 builder.Services.AddScoped<IRequestService, RequestService>();
 
-// [NEW] Every error response (400/401/404/500) uses the standard RFC 7807 ProblemDetails JSON shape,
-// with a traceId that matches the server log entry.
-// CustomizeProblemDetails: the exception-handler 500 doesn't include a traceId by default (verified), so add it to every response.
+// Every error response uses RFC 7807 ProblemDetails with a traceId that matches the server log entry
+// (the exception-handler 500 has no traceId by default, so it is added here).
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ctx =>
     ctx.ProblemDetails.Extensions.TryAdd("traceId", Activity.Current?.Id ?? ctx.HttpContext.TraceIdentifier));
 
 var app = builder.Build();
 
-// [NEW] Global error handling, by environment:
-//  - Production (and any non-Development environment, including when ASPNETCORE_ENVIRONMENT is unset; fails closed):
-//    an unhandled exception returns a generic 500 ProblemDetails { type, title, status, traceId }.
-//    No exception message, stack trace, SQL, or connection details reach the client.
-//    The exception handler middleware logs the full exception server-side, so traceId links the response to the log.
-//  - Development: ASP.NET Core enables the Developer Exception Page automatically, so the full exception and stack
-//    trace are returned (as ProblemDetails JSON for API clients) to speed up debugging.
+// Unhandled exceptions:
+//  - Any non-Development environment (fails closed if unset): generic 500 { type, title, status, traceId }.
+//    No message, stack trace or SQL reaches the client; the full exception is logged server-side under that traceId.
+//  - Development: the built-in Developer Exception Page returns the full exception for debugging.
 if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler();
 
@@ -48,9 +42,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// [NEW] Review note: responses that never reach a controller (e.g. 404 for an unknown route) had an empty body,
-// contradicting the "every error is ProblemDetails" comment above. UseStatusCodePages + AddProblemDetails writes
-// a ProblemDetails body for any empty 4xx/5xx response.
+// Gives empty error responses (e.g. 404 for an unknown route) a ProblemDetails body too.
 app.UseStatusCodePages();
 
 app.MapControllers();

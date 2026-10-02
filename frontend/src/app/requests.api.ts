@@ -1,4 +1,4 @@
-// [NEW] Contract types for GET /api/requests (PLAN.md Phase 2) + the single HTTP call that maps filters to query params.
+// Contract types for GET /api/requests and the one HTTP call that maps filters to query params.
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 
@@ -42,12 +42,12 @@ export class RequestsApi {
 
   search(p: SearchParams) {
     let params = new HttpParams().set('sortBy', p.sortBy).set('sortDir', p.sortDir).set('pageSize', p.pageSize);
-    // [NEW] Empty values are never sent (e.g. no `requestNumber=`), so the backend sees "no filter".
+    // Empty values are never sent (no `requestNumber=`), so the backend sees "no filter".
     for (const k of ['requestNumber', 'requestType', 'createdFrom', 'createdTo', 'cursor'] as const) {
       const v = p[k];
       if (v) params = params.set(k, v);
     }
-    // [NEW] Multi-status = repeated `status=` params (what the backend's IN (...) binding expects).
+    // Multi-status = repeated `status=` params, which the backend binds to an array for IN (...).
     for (const s of p.status ?? []) params = params.append('status', s);
     return this.http.get<Page>('/api/requests', { params });
   }

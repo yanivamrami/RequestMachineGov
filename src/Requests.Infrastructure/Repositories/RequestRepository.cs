@@ -14,43 +14,9 @@ public sealed class RequestRepository : IRequestRepository
         _db = db;
     }
 
-    // [OLD] Replaced: materializes the whole table (every column, every row, change-tracked)
-    // before any filtering happens.
-    // public Task<List<Request>> GetAllAsync(CancellationToken cancellationToken = default)
-    // {
-    //     return _db.Requests.ToListAsync(cancellationToken);
-    // }
-
-    // [OLD] Replaced (Phase 2): permission filter, order and projection were right, but there were no filters
-    // and no row limit, so an admin still received the entire table.
-    // public Task<List<RequestDto>> GetVisibleAsync(
-    //     int currentUserId,
-    //     bool isAdministrator,
-    //     CancellationToken cancellationToken = default)
-    // {
-    //     IQueryable<Request> query = _db.Requests;
-    //
-    //     if (!isAdministrator)
-    //         query = query.Where(x => x.OwnerId == currentUserId || x.AssignedToUserId == currentUserId);
-    //
-    //     return query
-    //         .OrderByDescending(x => x.CreatedAt)
-    //         .ThenByDescending(x => x.Id)
-    //         .Select(x => new RequestDto(
-    //             x.Id,
-    //             x.RequestNumber,
-    //             x.CustomerId,
-    //             x.OwnerId,
-    //             x.AssignedToUserId,
-    //             x.Status,
-    //             x.RequestType,
-    //             x.CreatedAt))
-    //         .ToListAsync(cancellationToken);
-    // }
-
-    // [NEW] Composes one IQueryable and executes it once (at ToListAsync), so the DB returns a single page:
-    //   permission → filters → keyset "after cursor" → ORDER BY (sort key, Id) → TOP (PageSize + 1) → only DTO columns.
-    // Every step is a plain comparison / Contains / IN, all of which translate to SQL. Nothing is evaluated in C#.
+    // Builds one IQueryable and runs it once (at ToListAsync), so the DB returns a single page:
+    //   permission → filters → keyset "after cursor" → ORDER BY (sort key, Id) → TOP (PageSize + 1) → DTO columns only.
+    // Every step translates to SQL; nothing is evaluated in C#.
     public Task<List<RequestDto>> SearchAsync(
         RequestSearchQuery q,
         RequestCursor? after,
@@ -87,10 +53,7 @@ public sealed class RequestRepository : IRequestRepository
             query = query.Where(x => x.CreatedAt >= fromUtc);
         }
 
-        // [OLD] Replaced (review F2): createdTo=9999-12-31 is a valid DateOnly, but AddDays(1) overflowed it, so the
-        // request returned a 500 instead of results.
-        // if (q.CreatedTo is { } to)
-        // [NEW] DateOnly.MaxValue as the upper bound excludes nothing, so skip the filter instead of computing max + 1 day.
+        // DateOnly.MaxValue excludes nothing, and adding a day to it would overflow, so it means "no upper bound".
         if (q.CreatedTo is { } to && to < DateOnly.MaxValue)
         {
             var toExclusiveUtc = to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
@@ -116,11 +79,11 @@ public sealed class RequestRepository : IRequestRepository
             .ToListAsync(cancellationToken);
     }
 
-    // [NEW] Keyset predicate: rows strictly after the cursor in (sort key, Id) order. Id breaks ties, so rows sharing a
-    // sort value (same status, same timestamp) are neither repeated nor skipped across pages.
-    // Written as "key <= v AND (key < v OR Id < id)" rather than the equivalent "key < v OR (key = v AND Id < id)":
-    // the leading range on the key lets the DB seek the (key, ..., Id) index instead of scanning (perf review F-003).
-    // An explicit switch rather than expression-tree tricks: each line is readable and translates to SQL as written.
+    // Keyset predicate: rows strictly after the cursor in (sort key, Id) order. Id breaks ties, so rows sharing a
+    // sort value are neither repeated nor skipped across pages.
+    // "key <= v AND (key < v OR Id < id)" instead of the equivalent "key < v OR (key = v AND Id < id)": the leading
+    // range on the key lets the DB seek the index instead of scanning.
+    // A plain switch keeps every case readable and translated to SQL exactly as written.
     private static IQueryable<Request> After(IQueryable<Request> q, RequestSortBy sortBy, bool descending, RequestCursor c)
         => (sortBy, descending) switch
         {
@@ -135,7 +98,7 @@ public sealed class RequestRepository : IRequestRepository
             _ => throw new ArgumentOutOfRangeException(nameof(sortBy))
         };
 
-    // [NEW] ORDER BY must match the keyset predicate exactly (same key, same direction, Id last), or pages overlap.
+    // ORDER BY must match the keyset predicate exactly (same key, same direction, Id last), or pages overlap.
     private static IQueryable<Request> OrderBy(IQueryable<Request> q, RequestSortBy sortBy, bool descending)
         => (sortBy, descending) switch
         {

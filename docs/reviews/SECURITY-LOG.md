@@ -78,3 +78,6 @@ A record of every security review, its findings, and how each finding was resolv
 - The identity clear reduces exposure and adds no new state.
 - The `piscina` override stays within the same major version and is build-time only.
 **Carried forward:** B-S2 (accepted).
+
+## Run 6 — PR #7: comment cleanup (2026-10-02)
+**Scope:** `git diff main..chore/clean-comments`: 32 source/test/doc files. **Result:** no review needed. A script stripped all comments from each file before and after, and the remaining code is identical in all 32. Behavior is unchanged; backend 23/23 and frontend 5/5 tests pass and the build is OK.

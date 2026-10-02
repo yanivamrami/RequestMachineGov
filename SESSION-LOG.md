@@ -93,3 +93,13 @@ Reviews (saved in `docs/reviews/`):
 - Performance: F-001 unbounded result (deferred to Phase 2, by plan), F-002 the OR predicate's index usage needs verification on a real DB, F-003 index write cost (low).
 - Security: no findings ≥ 8 confidence; the known pre-existing risk is that `X-Is-Admin` can be spoofed.
 Committed locally (2 commits on the branch). Not pushed; no PR yet.
+
+## 12. Orchestrator: Angular UI planning agent
+**User:** `/agent-orchestrator` — while the main agent runs Phase 1, start another agent to plan the Angular UI per the spec.
+
+**Assistant:** Phase 1 was already complete (committed locally, awaiting push/PR approval). Created a task list (T1 Phase 1: Review; T2 Angular UI plan: Delegated; T3 Phase 2: Pending). Spawned a background Sonnet agent (well-defined planning task, reviewed by the orchestrator) to write `PLAN-FRONTEND.md` only, with no code or installs. Its brief: plan against the Phase 2 API contract, covering the UI library choice, dev proxy vs CORS, components, filter validation, sorting, the cursor-stack Prev/Next, loading/error/empty states, request cancellation, a user/admin header control, accessibility, 3–5 tests, and effort ≤ ~75 min.
+
+## 13. Review trail logs
+**User:** For both the performance and security reviews, keep a LOG file per review type with findings and fixes, as a trail of what was done.
+
+**Assistant:** Created `docs/reviews/PERFORMANCE-LOG.md` and `docs/reviews/SECURITY-LOG.md` (append-only; each run lists scope, commit, findings, status Fixed/Deferred/Accepted/Open, and the fix). Backfilled them with Run 0 (findings on the original code, mostly fixed in Phase 1) and Run 1 (the Phase 1 reviews, plus the traceId issue found during verification). Added the rule to CLAUDE.md and memory. Committed on the Phase 1 branch.

@@ -39,7 +39,7 @@ Known starting-point weaknesses (relevant to the task):
 ## Working rules
 
 - Append a summary of every user input and assistant output to `SESSION-LOG.md` (newest at bottom) for later review.
-- On every delivery (each major feature, and at project completion), run the `performance-reviewer:performance-reviewer` and `security-review` skills.
+- On every delivery (each major feature, and at project completion), run the `performance-reviewer:performance-reviewer` and `security-review` skills. Append each run (scope, findings, status: Fixed/Deferred/Accepted/Open, fix commit) to `docs/reviews/PERFORMANCE-LOG.md` and `docs/reviews/SECURITY-LOG.md`; full reports go next to them.
 - **Change annotation (required for every code change, so each change can be explained in the interview):** keep the old code commented out above the new code:
   ```csharp
   // [OLD] Replaced: <why the old code is wrong / insufficient>

@@ -201,3 +201,55 @@ No code changed, so no performance/security review was run.
 A live retry-ladder strip and a step log track progress. All 7 scenarios were run in the browser pane and end clean (outbox/queues/DLQ = 0, one email each).
 
 Also fixed a bug in my own design doc: a plain inbox row committed before the email send would make a redelivery after a failed send look like a duplicate, so the email would be lost. The Notification row (Pending/Sent) is now the dedupe record for Notifications. The inbox stays for DB-only consumers like Reporting.
+
+## 23. Part C: AWS cloud deployment
+**User:** Plan the Part C cloud deployment for massive scale: (1) review the requirements, (2) explain how the deployment answers the main components, (3) provide an HTML diagram of the AWS deployment.
+
+**Assistant:** Extracted Part C from the spec PDF. It asks for a short sketch on AWS/Azure/GCP covering Compute, DB, Messaging, Monitoring and Scaling; IaC is not required.
+
+Wrote `docs/architecture/cloud-aws.md`:
+- Requirements table and scale assumptions (hundreds of millions of rows, ~5k req/s, 10k events/s bursts).
+- Per-component answers:
+  - Edge: CloudFront + WAF + S3 SPA, Cognito JWT validated in each service.
+  - Compute: ECS Fargate across 3 AZs behind an ALB, Service Connect for sync calls.
+  - DB: Aurora PostgreSQL + RDS Proxy; Requests reads on replicas, monthly partitions, pg_trgm. DynamoDB conditional put for Notifications dedupe; S3 with pre-signed URLs; Redis for idempotency keys.
+  - Messaging: SNS → SQS per consumer; the retry ladder mapped to ChangeMessageVisibility, redrive maxReceiveCount=5 → DLQ; MassTransit SQS transport.
+  - Monitoring: CloudWatch, OTel → X-Ray, alarms mapped to the Part B failure scenarios.
+  - Scaling: ALB request count per target for APIs, SQS backlog per task for workers, Aurora reader auto-scaling.
+  - DR (Aurora Global DB, active-passive) and security.
+- Decision: ECS Fargate vs EKS / Lambda / EC2.
+- Next steps: OpenSearch, Aurora Limitless, analytics lake.
+
+Wrote `docs/architecture/cloud-aws.html`: an SVG diagram (region → VPC → public/app/data subnets, ECS cluster, regional managed services), with flow-highlight buttons (user request, event → notification, data access, observability), hover tooltips, and summary cards per component. Checked in the browser at 1440px; fixed two overlapping group labels.
+
+## 24. PR 5
+**User:** Commit this as PR 5.
+
+**Assistant:** Committed cloud-aws.md/html + session log on `feat/phase-5-cloud` and opened PR 5 against `feat/phase-4-architecture`.
+
+## 25. Is AWS API Gateway used?
+**User:** Are we using AWS API Gateway in this architecture?
+
+**Assistant:** No. The Part B "API Gateway" is a role:
+- ALB does routing and TLS.
+- CloudFront + WAF + Shield do rate limiting and protection.
+- Cognito issues the JWT, which each service validates.
+- Authorization happens inside each service.
+
+Skipped API Gateway because of per-request cost at billions of calls/month and because none of its features are needed. Would add it for a public third-party API (keys, quotas) or Lambda backends.
+
+## 26. Wouldn't API Gateway perform better?
+**User:** Doesn't a dedicated AWS API Gateway perform better than the current architecture?
+
+**Assistant:** No, it would be slightly slower:
+1. It's an extra hop (API Gateway → VPC Link → LB → service), in front of the ALB rather than replacing it.
+2. Latency lives in the services and DB, which API Gateway doesn't touch.
+3. Edge-optimized endpoints are just CloudFront, which we already have.
+4. It has a default ~10k req/s regional quota.
+
+Its response cache doesn't fit permission-filtered results: a per-user key gives a low hit rate, and a wrong key leaks data.
+
+## 27. Document the API Gateway decision
+**User:** Add it to cloud-aws.md and push to PR 5.
+
+**Assistant:** Added section 4 "Decision: no AWS API Gateway (ALB + WAF instead)": the role mapping table, cost reasoning, five performance points, and when to add API Gateway. Linked it from the Compute section; renumbered "Left out on purpose" to section 5. Pushed to PR 5.

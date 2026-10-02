@@ -40,11 +40,27 @@ public class RequestsController : ControllerBase
     // [FromHeader] makes both headers visible and fillable in Swagger.
     // ponytail: identity comes from client-supplied headers (the exercise's stand-in). Anyone can send X-Is-Admin: true.
     // Production would read the user id and role from a validated JWT (User.Claims) via [Authorize].
+    // [OLD] Replaced (Phase 2): no search criteria; returned the full visible list.
+    // public async Task<ActionResult<IReadOnlyList<RequestDto>>> Get(
+    //     [FromHeader(Name = "X-User-Id")] string? userIdHeader,
+    //     [FromHeader(Name = "X-Is-Admin")] string? isAdminHeader,
+    //     CancellationToken cancellationToken)
+    //     ...
+    //     var result = await _service.GetRequestsAsync(userId, isAdmin, cancellationToken);
+
+    // [NEW] Search endpoint: GET /api/requests?requestNumber=&status=&requestType=&createdFrom=&createdTo=&sortBy=&sortDir=&pageSize=&cursor=
+    // [FromQuery] is required: [ApiController] would otherwise infer [FromBody] for a complex type, and GET has no body.
+    // Invalid criteria never reach this method: [ApiController] returns 400 ProblemDetails with per-field errors.
+    // ponytail: that 400 check runs before the header check below, so an anonymous call with bad criteria gets 400, not 401.
+    // With real auth ([Authorize]), authentication runs first and this goes away.
     [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<IReadOnlyList<RequestDto>>> Get(
+    public async Task<ActionResult<RequestPage>> Get(
         [FromHeader(Name = "X-User-Id")] string? userIdHeader,
         [FromHeader(Name = "X-Is-Admin")] string? isAdminHeader,
+        [FromQuery] RequestSearchQuery query,
         CancellationToken cancellationToken)
     {
         if (!int.TryParse(userIdHeader, out var userId) || userId <= 0)
@@ -52,7 +68,7 @@ public class RequestsController : ControllerBase
 
         var isAdmin = string.Equals(isAdminHeader, "true", StringComparison.OrdinalIgnoreCase);
 
-        var result = await _service.GetRequestsAsync(userId, isAdmin, cancellationToken);
+        var result = await _service.SearchAsync(query, userId, isAdmin, cancellationToken);
         return Ok(result);
     }
 }

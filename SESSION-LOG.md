@@ -344,3 +344,8 @@ Next: the standalone microservices architecture HTML, added to PR 4.
 - a "Reading the PRs" subsection with the [OLD]/[NEW] format, what each tag means, and how to read a PR (Files changed, top to bottom);
 - an explicit note that this is a review aid for the exercise, not a dev practice: git history and the PR diff hold the old code, so PR #7 removed the annotations, verified as comment-only, and the before/after remains in PRs 1–6.
 The existing process bullets moved under "Process". Pushed to PR 7.
+
+## 34. Merge PR 7
+**User:** Merge PR 7.
+
+**Assistant:** Merged PR #7 into `main` with a merge commit (`7f0300f`). All 7 PRs are now merged; `main` is the final submission.

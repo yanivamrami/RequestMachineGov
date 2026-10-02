@@ -1,8 +1,90 @@
 /* [NEW] Global minimal styles: layout, visible focus, sr-only helper for a11y text. */
 /* [OLD] Replaced: empty CLI placeholder comment. */
+/* [OLD] Replaced (redesign): browser-default look, hard-coded hex colors, no shared tokens.
 body { font-family: system-ui, sans-serif; margin: 1rem auto; max-width: 70rem; padding: 0 1rem; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 :focus-visible { outline: 2px solid #1a56db; outline-offset: 2px; }
 .identity { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
 .identity input[type='number'] { width: 5rem; }
 .hint { color: #555; font-size: .85rem; }
+*/
+/* [NEW] "Warm & calm": warm paper background, white cards, one deep-teal accent for actions and selection.
+   All colors are tokens here so the components never hard-code a hex value. */
+:root {
+  --paper: oklch(97.6% .008 80);
+  --surface: oklch(99.6% .003 80);
+  --surface-2: oklch(97.2% .007 80);
+  --surface-hover: oklch(97.8% .012 190);
+  --line: oklch(91.5% .01 75);
+  --line-strong: oklch(85% .014 70);
+  --ink: oklch(24% .02 55);
+  --ink-2: oklch(42% .018 60);
+  --ink-3: oklch(55% .015 60);
+  --accent: oklch(50% .095 192);
+  --accent-hover: oklch(44% .09 192);
+  --accent-soft: oklch(95% .03 190);
+  --accent-ink-strong: oklch(36% .07 195);
+  --danger: oklch(50% .17 25);
+  --danger-ink: oklch(38% .13 25);
+  --danger-soft: oklch(96.5% .02 25);
+  --danger-line: oklch(85% .07 25);
+  --radius: 12px;
+  --shadow: 0 1px 2px oklch(30% .03 60 / .06), 0 4px 16px -4px oklch(30% .03 60 / .08);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 1rem; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+app-root { display: block; max-width: 76rem; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+@media (max-width: 30rem) { app-root { padding: 1.5rem 1rem 3rem; } }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: flex-end; justify-content: space-between; margin-bottom: 1.75rem; }
+h1 { margin: 0; font-size: 2rem; line-height: 1.15; font-weight: 700; letter-spacing: -.02em; }
+.lede { margin: .375rem 0 0; color: var(--ink-2); }
+
+/* Identity ("Viewing as") */
+.identity { display: flex; flex-direction: column; align-items: flex-end; gap: .375rem; }
+.identity-row {
+  display: flex; align-items: center; gap: .625rem;
+  padding: .375rem .375rem .375rem .875rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+}
+.identity-title { font-size: .8125rem; font-weight: 600; color: var(--ink-3); padding-right: .375rem; border-right: 1px solid var(--line); }
+.identity label { font-size: .875rem; font-weight: 500; color: var(--ink-2); }
+.identity input[type='number'] { width: 4.5rem; height: 2rem; border-radius: 999px; text-align: center; }
+.switch { display: inline-flex; align-items: center; gap: .375rem; padding-right: .5rem; cursor: pointer; }
+.switch input { accent-color: var(--accent); width: 1rem; height: 1rem; margin: 0; }
+.hint { color: var(--ink-3); font-size: .75rem; }
+@media (max-width: 40rem) { .identity { align-items: flex-start; } }
+
+/* Shared surfaces and controls */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+input:not([type='checkbox']), select {
+  width: 100%; height: 2.5rem; padding: 0 .75rem;
+  font: inherit; font-size: .9375rem; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+  transition: border-color .15s ease-out, box-shadow .15s ease-out;
+}
+input::placeholder { color: var(--ink-3); }
+input:not([type='checkbox']):hover, select:hover { border-color: var(--ink-3); }
+input:not([type='checkbox']):focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .375rem;
+  height: 2.5rem; padding: 0 1.125rem; border-radius: 8px;
+  font: inherit; font-size: .9375rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background-color .15s ease-out, border-color .15s ease-out, color .15s ease-out;
+}
+.btn-primary { background: var(--accent); color: oklch(99% 0 0); border: 1px solid var(--accent); min-width: 7rem; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
+.btn-ghost:hover:not(:disabled) { border-color: var(--ink-3); background: var(--surface-2); }
+.btn:disabled { cursor: not-allowed; opacity: .5; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

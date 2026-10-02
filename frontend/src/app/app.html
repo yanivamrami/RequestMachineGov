@@ -1,5 +1,17 @@
 <!-- [NEW] Shell template. -->
 <!-- [OLD] Replaced: ~20KB Angular CLI welcome-page placeholder (deleted as pure boilerplate, not kept commented). -->
-<h1>Requests</h1>
-<app-identity-bar />
-<app-request-search />
+<!-- [OLD] Replaced (redesign): bare h1 + identity bar stacked above the page; no page intro, identity looked like a filter. -->
+<!-- <h1>Requests</h1> -->
+<!-- <app-identity-bar /> -->
+<!-- <app-request-search /> -->
+<!-- [NEW] Header: title + one-line intro on the left, "viewing as" identity on the right, so it reads as context, not a filter. -->
+<header class="top">
+  <div>
+    <h1>Requests</h1>
+    <p class="lede">Find a request by number, status, type or date.</p>
+  </div>
+  <app-identity-bar />
+</header>
+<main>
+  <app-request-search />
+</main>

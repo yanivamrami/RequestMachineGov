@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Requests.Tests;
 
-// [NEW] Invalid-input handling: each bad criterion is rejected with an error on the right field.
+// Invalid input: each bad criterion is rejected on the right field.
 // These are the same rules [ApiController] runs to produce the 400 ProblemDetails.
 public class RequestSearchQueryTests
 {

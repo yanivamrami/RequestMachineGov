@@ -1,4 +1,4 @@
-// [NEW] Test 1: query-param mapping (empty omitted, repeated status, sort/page/cursor sent).
+// Query-param mapping: empty values omitted, repeated status, sort/page/cursor sent.
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';

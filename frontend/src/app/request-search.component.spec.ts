@@ -1,9 +1,8 @@
-// [NEW] Tests 2 and 4: cursor-stack paging/reset behaviour and form validators.
+// Cursor-stack paging and reset, identity switching, and form validators.
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { RequestSearchComponent } from './request-search.component';
-// [NEW] Needed by the identity-switch test (review F4).
 import { IdentityService } from './identity.service';
 
 function setup() {
@@ -57,8 +56,7 @@ describe('RequestSearchComponent', () => {
     http.verify();
   });
 
-  // [NEW] Review F4 regression: switching identity must not leave the previous identity's rows on screen
-  // while the new request is pending.
+  // Switching identity must not leave the previous identity's rows on screen while the new request is pending.
   it('clears the previous identity rows immediately when the identity changes', () => {
     const { c, http, expectReq } = setup();
     const row = { id: 1, requestNumber: 'REQ-PRIVATE-USER1', customerId: 1, ownerId: 1, assignedToUserId: null, status: 'New', requestType: 'General', createdAt: '2026-01-01T00:00:00Z' };

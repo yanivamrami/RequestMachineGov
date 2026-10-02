@@ -7,8 +7,8 @@ using Xunit;
 
 namespace Requests.Tests;
 
-// [NEW] Tests run the real RequestRepository against EF in-memory (a fresh DB per test).
-// The permission rule now lives in the repository's query, so a fake repository would no longer test it.
+// Runs the real RequestRepository against EF in-memory (a fresh DB per test), because the permission rule
+// lives in the repository's query and a fake repository wouldn't test it.
 public class RequestServiceTests
 {
     [Fact]
@@ -18,8 +18,6 @@ public class RequestServiceTests
             Create(1, ownerId: 1, assignedTo: 2),
             Create(2, ownerId: 3, assignedTo: 4));
 
-        // [OLD] Replaced (Phase 2): var result = await service.GetRequestsAsync(1, true);
-        // [NEW] Same scenario through the paged search API.
         var result = (await service.SearchAsync(new RequestSearchQuery(), 1, true)).Items;
 
         Assert.Equal(2, result.Count);
@@ -34,16 +32,14 @@ public class RequestServiceTests
             Create(3, ownerId: 3, assignedTo: 5),
             Create(4, ownerId: 3, assignedTo: null));
 
-        // [OLD] Replaced (Phase 2): var result = await service.GetRequestsAsync(1, false);
-        // [NEW] Same scenario through the paged search API.
         var result = (await service.SearchAsync(new RequestSearchQuery(), 1, false)).Items;
 
-        // [NEW] Assert the exact set, not just the count, so a wrong-but-same-size result also fails.
-        // Row 4 (unassigned, other owner) checks that the nullable AssignedToUserId doesn't leak rows.
+        // Exact set, not just the count, so a wrong-but-same-size result fails too.
+        // Row 4 (unassigned, other owner) checks that a null AssignedToUserId doesn't leak rows.
         Assert.Equal([1, 2], result.Select(x => x.Id).Order());
     }
 
-    // [NEW] The old query had no ORDER BY; results must now be newest first, with Id breaking ties.
+    // Default order: newest first, with Id breaking ties.
     [Fact]
     public async Task Results_AreNewestFirst_WithIdAsTieBreaker()
     {
@@ -53,16 +49,14 @@ public class RequestServiceTests
             Create(2, ownerId: 1, assignedTo: null, createdAt: sameTime),
             Create(3, ownerId: 1, assignedTo: null, createdAt: sameTime));
 
-        // [OLD] Replaced (Phase 2): var result = await service.GetRequestsAsync(1, true);
-        // [NEW] Same scenario through the paged search API (default sort = createdAt desc).
         var result = (await service.SearchAsync(new RequestSearchQuery(), 1, true)).Items;
 
         Assert.Equal([3, 2, 1], result.Select(x => x.Id));
     }
 
-    // [NEW] Keyset correctness: walking every page returns each visible row exactly once, in the right order, for every
-    // sort field and direction. The data has many ties (3 timestamps, 4 statuses, 4 types), so this fails if Id stops
-    // breaking ties or the keyset predicate and ORDER BY disagree. It also checks permission scoping on every page.
+    // Keyset correctness: walking all pages returns each visible row exactly once, in order, for every sort and direction.
+    // The data has many ties (3 timestamps, 4 statuses, 4 types), so this fails if Id stops breaking ties or the
+    // keyset predicate and ORDER BY disagree. Permission scoping is checked on every page too.
     [Theory]
     [InlineData(RequestSortBy.CreatedAt, SortDirection.Desc)]
     [InlineData(RequestSortBy.CreatedAt, SortDirection.Asc)]
@@ -86,8 +80,8 @@ public class RequestServiceTests
         var visible = rows.Where(x => x.OwnerId == 1).ToList();
         var expected = Expected(visible, sortBy, sortDir).Select(x => x.Id).ToList();
 
-        // PageSize 3 on purpose: 16 visible rows with 4 per status/type, so page boundaries fall inside groups of tied
-        // values and the Id tie-breaker is actually exercised (a page size of 4 hid a broken tie-breaker, verified).
+        // PageSize 3 on purpose: with 4 rows per status/type, page boundaries fall inside groups of tied values,
+        // so the Id tie-breaker is exercised (page size 4 hid a broken tie-breaker).
         var seen = new List<int>();
         string? cursor = null;
         var pages = 0;
@@ -104,7 +98,7 @@ public class RequestServiceTests
         Assert.Equal(expected, seen);
     }
 
-    // [NEW] Filters combine with AND: multi-status (IN), type, inclusive date range, and case-insensitive "contains".
+    // Filters combine with AND: multi-status (IN), type, inclusive date range and case-insensitive "contains".
     [Fact]
     public async Task Filters_CombineStatusTypeDateRangeAndNumber()
     {
@@ -130,8 +124,8 @@ public class RequestServiceTests
         Assert.Equal([1, 2], page.Items.Select(x => x.Id).Order());
     }
 
-    // [NEW] Review F2 regression: the largest valid end date used to overflow (AddDays(1)) and return a 500.
-    // It must behave as "no upper bound", while an ordinary end date stays inclusive.
+    // The largest valid end date must mean "no upper bound" (it once overflowed into a 500),
+    // while an ordinary end date stays inclusive.
     [Fact]
     public async Task CreatedTo_MaxDate_ReturnsResultsInsteadOfOverflowing()
     {
@@ -159,20 +153,7 @@ public class RequestServiceTests
             : rows.OrderBy(key).ThenBy(x => x.Id);
     }
 
-    // [OLD] Replaced: the fake repository returned a fixed list, so it never exercised the real query.
-    // private sealed class FakeRequestRepository : IRequestRepository
-    // {
-    //     private readonly List<Request> _requests;
-    //
-    //     public FakeRequestRepository(List<Request> requests)
-    //     {
-    //         _requests = requests;
-    //     }
-    //
-    //     public Task<List<Request>> GetAllAsync(CancellationToken cancellationToken = default)
-    //         => Task.FromResult(_requests);
-    // }
-    // [NEW] Seeds a uniquely named in-memory DB, so tests are isolated from each other.
+    // A uniquely named in-memory DB per test keeps tests isolated.
     private static RequestService CreateService(params Request[] requests)
     {
         var options = new DbContextOptionsBuilder<RequestsDbContext>()
@@ -186,8 +167,6 @@ public class RequestServiceTests
         return new RequestService(new RequestRepository(db));
     }
 
-    // [OLD] Replaced (Phase 2): private static Request Create(int id, int ownerId, int? assignedTo, DateTime? createdAt = null)
-    // [NEW] Status and type are configurable so the paging and filter tests can build ties and mixed data.
     private static Request Create(int id, int ownerId, int? assignedTo, DateTime? createdAt = null,
         RequestStatus status = RequestStatus.New, RequestType type = RequestType.General)
         => new()

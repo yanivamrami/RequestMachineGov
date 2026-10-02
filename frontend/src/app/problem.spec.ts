@@ -1,4 +1,4 @@
-// [NEW] Test 3: error mapping for 400 / 401 / 500 / network.
+// Error mapping for 400 / 401 / 500 / network failures.
 import { HttpErrorResponse } from '@angular/common/http';
 import { toProblem } from './problem';
 

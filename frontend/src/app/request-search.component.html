@@ -1,8 +1,4 @@
-<!-- [NEW] Search page template: filter form, states, table, pager. -->
-<!-- [OLD] Replaced (redesign): one flex-wrapped row of unstyled fields, stacked Search/Reset buttons, page size among the filters,
-     plain-text status cells and a bare pager. Bindings, validation and a11y attributes below are unchanged.
-     Full previous markup: git show e633800:frontend/src/app/request-search.component.html -->
-<!-- [NEW] Filters sit in one card: text/select/date fields on a grid, status as toggle chips, actions on the right. -->
+<!-- Filters in one card: fields on a grid, status as toggle chips, actions on the right. -->
 <form class="card filters" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
   <div class="field field-number">
     <label for="requestNumber">Request number</label>
@@ -35,7 +31,7 @@
     @if (err('createdTo'); as m) { <span id="err-createdTo" class="error">{{ m }}</span> }
   </div>
 
-  <!-- [NEW] Same native checkboxes, styled as chips; the whole chip is the click target. -->
+  <!-- Native checkboxes styled as chips; the whole chip is the click target. -->
   <fieldset class="statuses" [attr.aria-invalid]="!!err('status')" [attr.aria-describedby]="err('status') ? 'err-status' : null">
     <legend>Status</legend>
     <div class="chips">
@@ -52,7 +48,7 @@
   </div>
 </form>
 
-<!-- [NEW] One polite live region announces loading / result count / empty state to screen readers. -->
+<!-- Announces loading, result count and empty state to screen readers. -->
 <div class="sr-only" aria-live="polite">
   @if (loading()) { Loading... }
   @else if (!error()) { {{ rows().length ? rows().length + ' results on this page' : 'No results' }} }
@@ -65,7 +61,7 @@
   </div>
 }
 
-<!-- [NEW] Results card: thin progress bar while loading, horizontal scroll on narrow screens, pager in the card footer. -->
+<!-- Results: progress bar while loading, horizontal scroll on narrow screens, pager in the footer. -->
 <section class="card results" [attr.aria-busy]="loading()">
   @if (loading()) { <div class="progress" aria-hidden="true"></div> }
   <div class="table-wrap" [class.dim]="loading() && rows().length">
@@ -77,7 +73,7 @@
             @for (c of cols; track c.label) {
               @if (c.sortBy; as by) {
                 <th scope="col" [attr.aria-sort]="ariaSort(by)">
-                  <!-- [NEW] Arrow shows the active sort; faint double arrow hints the column is sortable. -->
+                  <!-- Arrow shows the active sort; the double arrow marks a sortable column. -->
                   <button type="button" class="sort" (click)="toggleSort(by)" [disabled]="loading()">
                     {{ c.label }}
                     <span class="arrow" aria-hidden="true">{{ ariaSort(by) === 'ascending' ? '↑' : ariaSort(by) === 'descending' ? '↓' : '↕' }}</span>
@@ -97,10 +93,10 @@
               <td class="num">{{ r.customerId }}</td>
               <td class="num">{{ r.ownerId }}</td>
               <td class="num">@if (r.assignedToUserId != null) { {{ r.assignedToUserId }} } @else { <span class="muted">Unassigned</span> }</td>
-              <!-- [NEW] Status as a colored pill so it can be scanned down the column. -->
+              <!-- Colored status pill, easy to scan down the column. -->
               <td><span class="pill" [attr.data-status]="r.status">{{ label(r.status) }}</span></td>
               <td>{{ r.requestType }}</td>
-              <!-- [NEW] 'UTC' so display doesn't depend on a Z suffix (review note 3) -->
+              <!-- Explicit 'UTC': a SQL provider returns timestamps without the Z suffix. -->
               <td class="num nowrap">{{ r.createdAt | date: 'd MMM yyyy, HH:mm' : 'UTC' }}</td>
             </tr>
           }
@@ -109,7 +105,7 @@
     } @else if (loading()) {
       <p class="empty">Loading requests…</p>
     } @else if (!error()) {
-      <!-- [NEW] Page 0 empty = no match; later page empty = data changed between clicks (review note 2), Previous stays enabled. -->
+      <!-- First page empty = no match. A later page can be empty if data changed between clicks; Previous still works. -->
       <div class="empty">
         @if (pageIndex() === 0) {
           <p class="empty-title">No requests match these filters</p>
@@ -123,7 +119,7 @@
     }
   </div>
 
-  <!-- [NEW] Page size moved here from the filters: it controls paging, not what matches. Same control, same handler. -->
+  <!-- Page size lives with the pager: it controls paging, not what matches. -->
   <footer class="pager">
     <label class="page-size">
       Rows per page

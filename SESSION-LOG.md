@@ -322,3 +322,16 @@ Docs:
 
 Next: the standalone microservices architecture HTML, added to PR 4.
 - Microservices diagram: added `docs/architecture/microservices-architecture.html` to PR 4 (`feat/phase-4-architecture`). It shows services with their own DBs, the gateway, the broker, and sync/event/data flows with highlighting, plus an API/events table. It is linked from microservices.md and the README. Checked in the browser at 1400px (fixed a gateway text overflow and a label overlap). Merged PR 4 → PR 5 → PR 6 branches with merge commits, so the stack stays consistent.
+
+## 32. Merge all PRs; comment cleanup PR; move plans
+**User:** Reviewed all PRs; merge them. Then open a new PR that cleans the comments: concise, descriptive and intuitive, still explaining what and why. Mid-turn: move PLAN, PLAN-FRONTEND (and any other planning docs) to docs/plans.
+
+**Assistant:**
+- Merged PRs 1→6 into `main` in order: each retargeted to `main`, then merged with a merge commit. `main` equals the final PR 6 branch.
+- Asked how to treat the [OLD] blocks; the user chose to remove them.
+- On `chore/clean-comments`: removed all 30 [OLD] blocks and 88 [NEW] tags across 32 files (backend, tests, Angular TS/HTML/CSS, the 3 architecture pages), rewriting the comments as short what+why. Updated a stale one along the way: problem.ts now says field-error keys are lower-cased because the backend sends PascalCase.
+- One mistake caught: my block-cut matched code text inside two commented-out [OLD] blocks (app.config.ts, app.ts). I rewrote those two files by hand.
+- Mechanical check: with comments stripped, all 32 files are code-identical to `main`. Backend 23/23, frontend 5/5, build OK.
+- Moved PLAN.md and PLAN-FRONTEND.md to `docs/plans/` with `git mv`; no other planning docs found.
+- Docs: README (plans row, PR 7 in the stack, the annotation-history note, removed the "cleanup" unfinished item), AI-usage (annotations retired, cleanup verification), CLAUDE.md (comment rule replaces the annotation rule), and the memory updated to match.
+- Review logs: Run 6 says no review is needed because the code is unchanged.

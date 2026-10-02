@@ -11,10 +11,10 @@ public class RequestsDbContext : DbContext
 
     public DbSet<Request> Requests => Set<Request>();
 
-    // [NEW] Indexes for the actual query shapes (equality columns first, then the sort key, then Id as tie-breaker).
-    // The in-memory provider ignores them, but they are part of the model: on SQL Server/Postgres they become a migration.
-    // Deliberately no single-column Status/Type indexes (only 4 values each, so poor selectivity), and no index per
-    // sortable column (each index slows down every write).
+    // Indexes match the real query shapes: equality columns, then the sort key, then Id as tie-breaker.
+    // The in-memory provider ignores them; on a SQL provider they become a migration.
+    // No single-column Status/Type indexes (4 values each, poor selectivity) and no index per sortable column
+    // (every index slows writes).
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var request = modelBuilder.Entity<Request>();
@@ -31,7 +31,7 @@ public class RequestsDbContext : DbContext
         // Admin listing (no permission filter), created-date range, and keyset paging on CreatedAt.
         request.HasIndex(x => new { x.CreatedAt, x.Id });
 
-        // Status filter (Phase 2) combined with the default sort.
+        // Status filter combined with the default sort.
         request.HasIndex(x => new { x.Status, x.CreatedAt, x.Id });
     }
 }

@@ -16,11 +16,8 @@ public static class DependencyInjection
         services.AddDbContext<RequestsDbContext>(options =>
             options.UseInMemoryDatabase("CandidateRequests"));
 
+        // Data access only; Application services are registered in Program.cs.
         services.AddScoped<IRequestRepository, RequestRepository>();
-
-        // [OLD] Replaced: Infrastructure registered an Application service, so the data layer was wiring up business logic.
-        // services.AddScoped<IRequestService, RequestService>();
-        // [NEW] RequestService registration moved to Program.cs (the composition root); Infrastructure registers only data access.
 
         return services;
     }

@@ -10,6 +10,7 @@ A search API and an Angular UI for Requests (Part A), a microservices design wit
 | C — Cloud deployment (AWS) | [docs/architecture/cloud-aws.md](docs/architecture/cloud-aws.md) + diagram [cloud-aws.html](docs/architecture/cloud-aws.html) |
 | AI usage | [AI-usage.md](AI-usage.md) |
 | Review trail | [docs/reviews/](docs/reviews/): performance & security logs and reports per phase |
+| Plans | [docs/plans/](docs/plans/): the backend plan (`PLAN.md`) and the Angular UI plan (`PLAN-FRONTEND.md`) written before coding |
 
 The `.html` diagrams are self-contained. Open them directly in a browser; no server needed.
 
@@ -133,12 +134,11 @@ Parts B and C each have their own decision section: the transactional outbox, EC
 4. **Self-host the Figtree font** instead of loading it from Google Fonts. This fixes a render-blocking request and a privacy finding. Left open as the user's design decision.
 5. **More tests:** an API-level integration test (`WebApplicationFactory`) for 400/401, and a frontend test for request cancellation.
 6. **Parts B and C are designs only.** The next step would be a Notifications service with MassTransit outbox/inbox on RabbitMQ via docker-compose to demonstrate the failure scenarios for real.
-7. **Cleanup before final submission:** the `// [OLD]` / `// [NEW]` annotations are kept on purpose so every change can be explained in the interview (`grep -rn "\[OLD\]"`). They would be removed in a real codebase.
 
 ## How the work was delivered
 
-- **Stacked PRs:** baseline on `main` → PR 1 Phase 1 fixes → PR 2 search backend + Angular client → PR 3 UI redesign → PR 4 Part B → PR 5 Part C → PR 6 fixes from an independent code review + README/AI-usage.
-- **Every code change is annotated:** the old code is kept commented out with why it was wrong (`// [OLD]`), and the new code is commented with why it is better (`// [NEW]`).
+- **Stacked PRs:** baseline on `main` → PR 1 Phase 1 fixes → PR 2 search backend + Angular client → PR 3 UI redesign → PR 4 Part B → PR 5 Part C → PR 6 fixes from an independent code review + README/AI-usage → PR 7 comment cleanup + plans moved to `docs/plans/`.
+- **Change annotations during development:** while the PRs were open, every change kept the old code commented out with why it was wrong (`// [OLD]`) next to the new code and why it is better (`// [NEW]`), so each change could be reviewed and explained. Once all PRs were merged, a final cleanup PR (#7) replaced them with concise what/why comments. The before/after of every change is still in the merged PRs 1–6.
 - An **independent code review** of PRs 1–3 by a different AI model ([report](docs/reviews/code-review-pr1-pr2-pr3-20261002.md)) found 6 issues our own reviews had missed. All are fixed or explicitly accepted in PR 6.
 - After each feature I ran a performance and a security review. Findings and their status (Fixed/Deferred/Accepted/Open) are in [docs/reviews/](docs/reviews/).
 - [SESSION-LOG.md](SESSION-LOG.md) records every prompt and response of the AI-assisted session.

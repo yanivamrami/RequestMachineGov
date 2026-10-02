@@ -14,45 +14,11 @@ public class RequestsController : ControllerBase
         _service = service;
     }
 
-    // [OLD] Replaced: a missing or non-numeric X-User-Id silently became user 1, so an anonymous call
-    // got user 1's data (impersonation by omission). Headers were read by hand, so Swagger couldn't show them.
-    // // For the exercise, the current user is supplied through headers:
-    // // X-User-Id: integer
-    // // X-Is-Admin: true|false
-    // [HttpGet]
-    // public async Task<ActionResult<IReadOnlyList<RequestDto>>> Get(
-    //     CancellationToken cancellationToken)
-    // {
-    //     var userId = ParseUserId(Request.Headers["X-User-Id"].FirstOrDefault());
-    //     var isAdmin = string.Equals(
-    //         Request.Headers["X-Is-Admin"].FirstOrDefault(),
-    //         "true",
-    //         StringComparison.OrdinalIgnoreCase);
-    //
-    //     var result = await _service.GetRequestsAsync(userId, isAdmin, cancellationToken);
-    //     return Ok(result);
-    // }
-    //
-    // private static int ParseUserId(string? value)
-    //     => int.TryParse(value, out var userId) ? userId : 1;
-
-    // [NEW] No identity → 401. A missing, non-numeric, or non-positive X-User-Id is rejected instead of defaulting to a real user.
-    // [FromHeader] makes both headers visible and fillable in Swagger.
-    // ponytail: identity comes from client-supplied headers (the exercise's stand-in). Anyone can send X-Is-Admin: true.
-    // Production would read the user id and role from a validated JWT (User.Claims) via [Authorize].
-    // [OLD] Replaced (Phase 2): no search criteria; returned the full visible list.
-    // public async Task<ActionResult<IReadOnlyList<RequestDto>>> Get(
-    //     [FromHeader(Name = "X-User-Id")] string? userIdHeader,
-    //     [FromHeader(Name = "X-Is-Admin")] string? isAdminHeader,
-    //     CancellationToken cancellationToken)
-    //     ...
-    //     var result = await _service.GetRequestsAsync(userId, isAdmin, cancellationToken);
-
-    // [NEW] Search endpoint: GET /api/requests?requestNumber=&status=&requestType=&createdFrom=&createdTo=&sortBy=&sortDir=&pageSize=&cursor=
-    // [FromQuery] is required: [ApiController] would otherwise infer [FromBody] for a complex type, and GET has no body.
-    // Invalid criteria never reach this method: [ApiController] returns 400 ProblemDetails with per-field errors.
-    // ponytail: that 400 check runs before the header check below, so an anonymous call with bad criteria gets 400, not 401.
-    // With real auth ([Authorize]), authentication runs first and this goes away.
+    // GET /api/requests: filtered, sorted, keyset-paged search.
+    // [FromQuery] is required because [ApiController] would otherwise bind a complex type from the body, and GET has none.
+    // Invalid criteria never get here: [ApiController] answers 400 ProblemDetails with per-field errors.
+    // ponytail: identity comes from client-supplied headers (the exercise's stand-in), so anyone can claim admin.
+    // Real auth would read the user and role from a validated JWT via [Authorize]; that also makes 401 come before 400.
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -63,6 +29,7 @@ public class RequestsController : ControllerBase
         [FromQuery] RequestSearchQuery query,
         CancellationToken cancellationToken)
     {
+        // Never fall back to a default user: no valid identity means 401.
         if (!int.TryParse(userIdHeader, out var userId) || userId <= 0)
             return Unauthorized();
 

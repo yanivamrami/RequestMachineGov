@@ -93,6 +93,7 @@ Response:
    6. the extra row only sets `hasMore`, then it's dropped
 4. **Service** — decodes the cursor, calls the repository, and builds `nextCursor` from the last item.
 5. **Controller** — reads the identity (from Phase 1), passes `[FromQuery] RequestSearchQuery`, returns the page.
+6. **Enums as strings in JSON** — `AddControllers().AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))`. Responses then carry `"InProgress"` instead of `2`, matching the query-string values and the frontend types (found in the review of PLAN-FRONTEND.md).
 
 ### Indexes (declared in 1.5)
 

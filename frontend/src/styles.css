@@ -1,0 +1,8 @@
+/* [NEW] Global minimal styles: layout, visible focus, sr-only helper for a11y text. */
+/* [OLD] Replaced: empty CLI placeholder comment. */
+body { font-family: system-ui, sans-serif; margin: 1rem auto; max-width: 70rem; padding: 0 1rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+:focus-visible { outline: 2px solid #1a56db; outline-offset: 2px; }
+.identity { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+.identity input[type='number'] { width: 5rem; }
+.hint { color: #555; font-size: .85rem; }

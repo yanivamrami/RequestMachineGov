@@ -26,3 +26,22 @@ A record of every security review, its findings, and how each finding was resolv
 
 **Skill findings:** none at or above the reporting bar. Checked: the identity 401 path (including duplicate headers), the permission predicate (including NULL `AssignedToUserId`), parameterized LINQ (no injection), DTO field exposure, error-detail exposure by environment, Swagger Development-only.
 **Carried forward:** B-S2 (accepted).
+
+## Run 2 — Phase 2 delivery (2026-10-02)
+**Scope:** `git diff fix/phase-1-current-code..feat/phase-2-search` (backend + frontend). **Skill:** `security-review` method (sub-agent analysis with an adversarial false-positive pass, threshold ≥ 8). **Report:** [security-review-phase2-20261002.md](security-review-phase2-20261002.md)
+
+**Security controls added in Phase 2:**
+
+| ID | Control | Where |
+|----|---------|-------|
+| C-01 | `RequestNumber` whitelist `^[A-Za-z0-9-]+$`, 3–20 chars: no LIKE wildcards or junk reach the DB | `RequestSearchQuery` |
+| C-02 | Sort column from an enum whitelist; undefined numeric enum values rejected (`Enum.IsDefined`) | `RequestSearchQuery.Validate` |
+| C-03 | `PageSize` bounded 1–100; cursor length ≤ 1000 | `RequestSearchQuery` |
+| C-04 | Cursor bound to sortBy/sortDir, malformed → 400; the permission filter applies regardless of cursor contents | `RequestCursor`, `RequestRepository` |
+| C-05 | Client sends identity headers only to same-origin `/api` | `identity.interceptor.ts` |
+
+**Verified over HTTP:** 9 invalid inputs (short number, bogus/numeric status, unknown sortBy, pageSize 0, from > to, bad date, garbage cursor, cursor from another sort) → 400 with a field-keyed `errors` map; no header → 401.
+
+**Skill findings:** none at or above the reporting bar.
+**Considered and dropped:** forged cursor within one's own rows (by design); 400-before-401 ordering for anonymous bad requests (no data revealed, documented).
+**Carried forward:** B-S2 (accepted).

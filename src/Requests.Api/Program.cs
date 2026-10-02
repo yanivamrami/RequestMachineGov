@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Diagnostics;
 using Requests.Application.Requests;
 using Requests.Infrastructure;
@@ -5,7 +6,11 @@ using Requests.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// [OLD] Replaced: enums were serialized as numbers ("status": 2), unreadable and inconsistent with the query string (status=InProgress).
+// builder.Services.AddControllers();
+// [NEW] Enums as names in JSON ("status": "InProgress"), matching the query-string values and the frontend types.
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddInfrastructure();

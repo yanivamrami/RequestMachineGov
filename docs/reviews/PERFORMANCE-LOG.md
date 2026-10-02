@@ -25,3 +25,19 @@ A record of every performance review, its findings, and how each finding was res
 | F-001 | Sev 1 | Confirmed | `GetVisibleAsync` has no row limit; an admin gets the entire table | Deferred → Phase 2 | Keyset `Take(pageSize + 1)`; marked with a `ponytail:` comment in code |
 | F-002 | Sev 2 | Needs verification | `OwnerId = @u OR AssignedToUserId = @u` may fall back to a table scan | Accepted (for now) | Two composite indexes allow an index union. If `EXPLAIN` on a real DB shows a scan, rewrite as `Concat` (UNION ALL). Can't be measured on the in-memory provider |
 | F-003 | Sev 3 | Likely | 5 indexes add write cost; `(Status, CreatedAt, Id)` serves a Phase 2 filter | Accepted | Read-heavy listing; drop indexes that turn out unused, per usage stats |
+
+## Run 2 — Phase 2 delivery (2026-10-02)
+**Scope:** `git diff fix/phase-1-current-code..feat/phase-2-search` (backend + frontend). **Skill:** `performance-reviewer`. **Report:** [performance-review-phase2-20261002.md](performance-review-phase2-20261002.md)
+
+**Carried from Run 1:** F-001 (unbounded result) → **Fixed** by keyset `Take(PageSize + 1)`. B-P5 (no pagination) → **Fixed**.
+
+| ID | Sev | Confidence | Finding | Status | Fix / reason |
+|----|-----|-----------|---------|--------|--------------|
+| F-001 | Sev 2 | Likely | Admin sort by Status/RequestType has no `(key, Id)` index, so each page is a scan + top-N sort | Accepted | Regular users are narrowed by permission indexes first. Add `(Status, Id)` / `(RequestType, Id)` if admin usage shows it |
+| F-002 | Sev 2 | Needs verification | The permission OR can't return rows pre-ordered, so the user's rows are sorted per page | Accepted | Cheap for typical users. Upgrade: per-side keyset + `Concat` merge (Run 1 F-002, extended) |
+| F-003 | Sev 2 | Likely | OR-shaped keyset predicate may not seek | **Fixed** | Rewritten as `key <= v AND (key < v OR Id < id)`; the paging test (8 sort combinations) proves equivalence |
+| F-004 | Sev 3 | Confirmed | `LIKE '%term%'` can't seek | Accepted | 3-character minimum + scoped rows; `ponytail:` comment; trigram index at scale |
+| F-005 | Sev 3 | Confirmed | Cursor decoded twice per request | Accepted | Microseconds; the service decode protects non-HTTP callers |
+| F-006 | Sev 3 | Likely | Template method calls, no OnPush | Accepted | Zoneless + signals, ~12 cheap calls per pass; OnPush + `computed` if the page grows |
+
+**Also found during Phase 2 test writing:** the keyset paging test used page size 4 with exactly 4 rows per status/type, so it never exercised the Id tie-breaker. Verified by deliberately breaking the tie-breaker (the test still passed). Fixed with page size 3; the same mutation now fails the test.

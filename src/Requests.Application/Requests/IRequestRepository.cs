@@ -8,9 +8,17 @@ public interface IRequestRepository
     // At millions of rows each request would load the entire table into RAM.
     // Task<List<Request>> GetAllAsync(CancellationToken cancellationToken = default);
 
-    // [NEW] Returns only the rows the caller may see, already projected to DTOs.
-    // The permission rule becomes a WHERE clause in the DB query, so rows the user can't see never leave the database.
-    Task<List<RequestDto>> GetVisibleAsync(
+    // [OLD] Replaced (Phase 2): permission-scoped, but no filters and no row limit.
+    // Task<List<RequestDto>> GetVisibleAsync(
+    //     int currentUserId,
+    //     bool isAdministrator,
+    //     CancellationToken cancellationToken = default);
+
+    // [NEW] One DB query: permission + filters + keyset position + order + limit. Returns up to PageSize + 1 rows;
+    // the extra row tells the service whether another page exists, without a COUNT.
+    Task<List<RequestDto>> SearchAsync(
+        RequestSearchQuery query,
+        RequestCursor? after,
         int currentUserId,
         bool isAdministrator,
         CancellationToken cancellationToken = default);

@@ -1,0 +1,110 @@
+<!-- [NEW] Search page template: filter form, states, table, pager. -->
+<form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  <div class="field">
+    <label for="requestNumber">Request number</label>
+    <input id="requestNumber" type="text" maxlength="20" formControlName="requestNumber"
+      [attr.aria-invalid]="!!err('requestNumber')" [attr.aria-describedby]="err('requestNumber') ? 'err-requestNumber' : null" />
+    @if (err('requestNumber'); as m) { <span id="err-requestNumber" class="error">{{ m }}</span> }
+  </div>
+
+  <fieldset [attr.aria-invalid]="!!err('status')" [attr.aria-describedby]="err('status') ? 'err-status' : null">
+    <legend>Status</legend>
+    @for (s of statuses; track s) {
+      <label><input type="checkbox" #c [checked]="form.controls.status.value.includes(s)" (change)="toggleStatus(s, c.checked)" /> {{ s }}</label>
+    }
+    @if (err('status'); as m) { <span id="err-status" class="error">{{ m }}</span> }
+  </fieldset>
+
+  <div class="field">
+    <label for="requestType">Type</label>
+    <select id="requestType" formControlName="requestType"
+      [attr.aria-invalid]="!!err('requestType')" [attr.aria-describedby]="err('requestType') ? 'err-requestType' : null">
+      <option value="">Any</option>
+      @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
+    </select>
+    @if (err('requestType'); as m) { <span id="err-requestType" class="error">{{ m }}</span> }
+  </div>
+
+  <div class="field">
+    <label for="createdFrom">Created from</label>
+    <input id="createdFrom" type="date" formControlName="createdFrom"
+      [attr.aria-invalid]="!!err('createdFrom')" [attr.aria-describedby]="err('createdFrom') ? 'err-createdFrom' : null" />
+    @if (err('createdFrom'); as m) { <span id="err-createdFrom" class="error">{{ m }}</span> }
+  </div>
+
+  <div class="field">
+    <label for="createdTo">Created to</label>
+    <input id="createdTo" type="date" formControlName="createdTo"
+      [attr.aria-invalid]="!!err('createdTo')" [attr.aria-describedby]="err('createdTo') ? 'err-createdTo' : null" />
+    @if (err('createdTo'); as m) { <span id="err-createdTo" class="error">{{ m }}</span> }
+  </div>
+
+  <div class="field">
+    <label for="pageSize">Page size</label>
+    <select id="pageSize" formControlName="pageSize" (change)="changePageSize()"
+      [attr.aria-invalid]="!!err('pageSize')" [attr.aria-describedby]="err('pageSize') ? 'err-pageSize' : null">
+      @for (n of sizes; track n) { <option [ngValue]="n">{{ n }}</option> }
+    </select>
+    @if (err('pageSize'); as m) { <span id="err-pageSize" class="error">{{ m }}</span> }
+  </div>
+
+  <div class="field">
+    <button type="submit" [disabled]="loading()">Search</button>
+    <button type="button" (click)="reset()" [disabled]="loading()">Reset</button>
+  </div>
+</form>
+
+<!-- [NEW] One polite live region announces loading / result count / empty state to screen readers. -->
+<div class="sr-only" aria-live="polite">
+  @if (loading()) { Loading... }
+  @else if (!error()) { {{ rows().length ? rows().length + ' results on this page' : 'No results' }} }
+</div>
+
+@if (error(); as e) {
+  <div class="banner" role="alert">{{ e.text }} @if (e.traceId) { <small>(trace id: {{ e.traceId }})</small> }</div>
+}
+
+<div [class.dim]="loading()" [attr.aria-busy]="loading()">
+  @if (rows().length) {
+    <table>
+      <caption class="sr-only">Requests search results</caption>
+      <thead>
+        <tr>
+          @for (c of cols; track c.label) {
+            @if (c.sortBy; as by) {
+              <th scope="col" [attr.aria-sort]="ariaSort(by)">
+                <button type="button" (click)="toggleSort(by)" [disabled]="loading()">{{ c.label }}</button>
+              </th>
+            } @else {
+              <th scope="col">{{ c.label }}</th>
+            }
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rows(); track r.id) {
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.requestNumber }}</td>
+            <td>{{ r.customerId }}</td>
+            <td>{{ r.ownerId }}</td>
+            <td>{{ r.assignedToUserId ?? '-' }}</td>
+            <td>{{ r.status }}</td>
+            <td>{{ r.requestType }}</td>
+            <!-- [NEW] 'UTC' so display doesn't depend on a Z suffix (review note 3) -->
+            <td>{{ r.createdAt | date: 'yyyy-MM-dd HH:mm' : 'UTC' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else if (!loading() && !error()) {
+    <!-- [NEW] Page 0 empty = no match; later page empty = data changed between clicks (review note 2), Previous stays enabled. -->
+    <p>{{ pageIndex() === 0 ? 'No requests match your filters. Try Reset.' : 'No more results' }}</p>
+  }
+</div>
+
+<div class="pager">
+  <button type="button" (click)="prev()" [disabled]="loading() || pageIndex() === 0">Previous</button>
+  <span>Page {{ pageIndex() + 1 }}</span>
+  <button type="button" (click)="next()" [disabled]="loading() || !hasMore()">Next</button>
+</div>

@@ -103,3 +103,53 @@ Committed locally (2 commits on the branch). Not pushed; no PR yet.
 **User:** For both the performance and security reviews, keep a LOG file per review type with findings and fixes, as a trail of what was done.
 
 **Assistant:** Created `docs/reviews/PERFORMANCE-LOG.md` and `docs/reviews/SECURITY-LOG.md` (append-only; each run lists scope, commit, findings, status Fixed/Deferred/Accepted/Open, and the fix). Backfilled them with Run 0 (findings on the original code, mostly fixed in Phase 1) and Run 1 (the Phase 1 reviews, plus the traceId issue found during verification). Added the rule to CLAUDE.md and memory. Committed on the Phase 1 branch.
+
+## 14. Angular UI plan delivered and reviewed
+**Agent (Sonnet) → orchestrator:** Wrote `PLAN-FRONTEND.md`: Angular 21 (installed CLI 21.2.11, Node 22), standalone + signals, one `switchMap` search stream, plain HTML/CSS (no Material), dev proxy `/api → :60702` (no CORS), single page component + API service + identity interceptor/bar + `toProblem` error mapper, explicit Search button, cursor stack Prev/Next, 400 field-error mapping / 401 hint / 5xx + traceId, a11y basics, 4 tests, ~70 min.
+
+**Orchestrator review (assistant):** Checked the plan against the API contract and found 3 corrections, applied to the plan:
+1. The backend serializes enums as numbers (no `JsonStringEnumConverter`), but the UI expects strings. Added a one-line backend item to PLAN.md Phase 2 (#6).
+2. A later page can be empty if data changes between clicks; show "No more results".
+3. Format dates with DatePipe in 'UTC', because a real SQL provider returns DateTimes without the `Z` suffix.
+Task T2 → Completed. Plans not committed yet (uncommitted on the phase-1 branch; they belong with Phase 2).
+
+## 15. Build the client while Phase 2 is reviewed
+**User:** PR 1 waits for the user's review. Start an agent to build the client side per the plan while we review the Phase 2 plan.
+
+**Assistant:** Created branch `feat/phase-2-search` (stacked on the Phase 1 branch) and committed the plan files there. Spawned a background Sonnet agent to implement `frontend/` per PLAN-FRONTEND.md, including the review corrections. It writes only inside `frontend/` (no backend, no git), develops against `HttpTestingController` because the Phase 2 API doesn't exist yet, and must report real build and test results.
+
+## 16. Phase 2 Q&A: [FromQuery] vs [FromBody]; why a cursor
+**User:** (1) Why `[FromQuery]` and not a `[FromBody]` object? (2) Why do we need the cursor and what is it for?
+
+**Assistant:**
+1. A search is a read, so it should be a GET. A body on GET has no defined meaning in HTTP: browser `fetch` and Angular's `HttpClient.get` can't send one, and proxies may drop it. `[FromBody]` would force `POST /search`, losing safe/idempotent semantics, caching, bookmarkable URLs and safe retries. The filters are small scalars, far below URL length limits, and contain no sensitive data. POST-search is the right choice only for large or nested criteria or sensitive values.
+2. The cursor is the keyset-pagination bookmark: the last row's sort value + Id, encoded as an opaque token. OFFSET makes the DB read and throw away every skipped row (page 40,000 reads 1M rows) and shifts rows when data changes, causing duplicates or skipped rows. Keyset turns "next page" into an index seek `WHERE (CreatedAt, Id) < (@last, @lastId)`, so each page costs the same at any depth and stays stable while data changes. The token is opaque so clients pass it back unchanged, and it carries sortBy/sortDir so a mismatched cursor is rejected. Trade-off: no jumping to page N and no total-page count, which we accepted.
+
+## 17. Client delivered and reviewed
+**Agent (Sonnet) → orchestrator:** Built `frontend/` (Angular 21.2, zoneless, Vitest) per PLAN-FRONTEND.md. `ng build` OK; `ng test` 4/4 passing. Deviations: serverErrors signal instead of setErrors (avoids stale errors blocking submit); invalid user id sends no identity headers at all; a failed Next clears rows (Previous still works); the generated 20 KB welcome page was deleted with a one-line [OLD] note; JSON files can't hold [NEW] comments; no cancellation test. A fresh npm install needed `--legacy-peer-deps` (npm 10.9 bug).
+
+**Orchestrator review (assistant):** Re-ran build and tests myself (passing, 4/4). Confirmed no files outside `frontend/` changed, every source file is annotated, no innerHTML or bypassSecurity, node_modules/dist/.angular are git-ignored. Read the core logic: the cursor stack, switchMap + inner catchError, the identity interceptor, the 400 field mapping and the empty-page states are correct. One fix: added `frontend/.npmrc` (`legacy-peer-deps=true`) so a reviewer's plain `npm install` works (verified). Accepted the agent's deviations. Open dependency for Phase 2: the 400 `errors` keys must be plain property names (e.g. `RequestNumber`) for field-level display. Committed on `feat/phase-2-search`.
+
+## 2026-10-02 — UI redesign (/impeccable)
+**User:** Redesign the Requests page with /impeccable — simple demo, but looks count; easy to use, tidy, welcoming.
+**Assistant:** Picked "Warm & calm" direction (user chose it). Rewrote styles.css with OKLCH tokens (warm paper, white cards, deep-teal accent, Figtree font); header with intro + "Viewing as" identity pill; filters in one card on a responsive grid, status as checkbox chips, Reset/Search right-aligned; results card with progress bar, sort arrows, colored status pills, "Unassigned" label, friendlier dates, teaching empty state with "Clear filters"; page size moved to the pager footer ("Rows per page"). Added `label()` helper ('InProgress' -> 'In progress'). Logic/validation/a11y bindings unchanged; old markup/CSS kept as [OLD] blocks. Verified in browser at 1280px and 375px (data, empty, validation states); detector clean; `ng test` 4/4 pass. Root cause of the screenshot's error banner: API wasn't running on :60702 (proxy target).
+
+## 18. Phase 2 backend + PR stack
+**User:** Agreed with `[FromQuery]` (search is a GET). Start Phase 2 backend as planned, as a PR stacked on the existing one. Mid-turn: "where did you create PR1? I don't see it."
+
+**Assistant:**
+- PR 1 had never been opened: I had misread "PR1 will wait for my review" as "don't open it". Pushed `fix/phase-1-current-code` and opened PR #1 → main, bound to the session.
+- Implemented Phase 2 on `feat/phase-2-search`:
+  - `RequestSearchQuery` ([FromQuery]; data annotations + IValidatableObject; regex whitelist; enum whitelist with `Enum.IsDefined`).
+  - `RequestCursor` (hex JSON of the last row's 4 sort values + Id, bound to sortBy/sortDir, unsigned by design).
+  - `RequestPage` (items/nextCursor/hasMore).
+  - Repository `SearchAsync`: permission → filters → keyset → ORDER BY (key, Id) → Take(n+1) → DTO.
+  - Service: n+1 → hasMore + nextCursor.
+  - Controller [FromQuery]; JsonStringEnumConverter.
+  All changes annotated [OLD]/[NEW].
+- Tests 22/22: keyset walk for all 8 sort/direction combinations with ties, combined filters, 9 validation cases plus a valid one, and the Phase 1 tests ported.
+- Mutation check: deliberately breaking the Status tie-breaker still passed with page size 4 (data aligned exactly with group size). Fixed the test with page size 3, and the same mutation now fails.
+- HTTP smoke test: paging, filters and string enums OK; 9 invalid inputs → 400 with PascalCase field keys (match the client's case-insensitive mapping); no header → 401.
+- Performance review: fixed F-003 by rewriting the keyset as the index-seekable `key <= v AND (key < v OR Id < id)`. Accepted with reasons: admin sort by status/type lacks a (key, Id) index; the permission OR needs a per-page sort; LIKE contains; double cursor decode; template method calls.
+- Security review: no findings ≥ 8; added a controls table to SECURITY-LOG.
+- Noticed ~330 lines of uncommitted styling edits in `frontend/` that I didn't make. Left them uncommitted and out of PR 2.

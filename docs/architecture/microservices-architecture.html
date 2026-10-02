@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microservices Architecture</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --panel: #ffffff; --ink: #1f2328; --muted: #6a6f76; --line: #d4d2cc; --node: #ffffff;
+    --c-edge: #2f8a5b; --c-svc: #d97a0e; --c-db: #2f6fd6; --c-msg: #c2387d; --c-ext: #6a6f76;
+    --f-sync: #2f6fd6; --f-event: #c2387d; --f-data: #7a4fd0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181c; --panel: #1f2228; --ink: #e8e6e1; --muted: #9a9ea6; --line: #3a3e46; --node: #262a31;
+      --c-edge: #4cc27f; --c-svc: #f0a040; --c-db: #6d9cf0; --c-msg: #ec6fae; --c-ext: #9a9ea6;
+      --f-sync: #6d9cf0; --f-event: #ec6fae; --f-data: #a888f0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181c; --panel: #1f2228; --ink: #e8e6e1; --muted: #9a9ea6; --line: #3a3e46; --node: #262a31;
+    --c-edge: #4cc27f; --c-svc: #f0a040; --c-db: #6d9cf0; --c-msg: #ec6fae; --c-ext: #9a9ea6;
+    --f-sync: #6d9cf0; --f-event: #ec6fae; --f-data: #a888f0;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 14px; max-width: 920px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .controls button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  .controls button[aria-pressed="true"] { border-color: var(--ink); font-weight: 600; }
+  .controls button i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 900px; height: auto; }
+  .zone { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .zlabel { font-size: 12px; font-weight: 600; fill: var(--muted); }
+  .node rect.box { fill: var(--node); stroke: var(--line); stroke-width: 1.2; }
+  .node .t { font-size: 13px; font-weight: 650; fill: var(--ink); text-anchor: middle; }
+  .node .s { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+  .edge { fill: none; stroke-width: 2; transition: opacity .2s; }
+  .edge.sync { stroke: var(--f-sync); } .edge.event { stroke: var(--f-event); } .edge.data { stroke: var(--f-data); stroke-dasharray: 5 4; }
+  .elabel { font-size: 11px; font-weight: 600; paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; transition: opacity .2s; }
+  .elabel.sync { fill: var(--f-sync); } .elabel.event { fill: var(--f-event); } .elabel.data { fill: var(--f-data); }
+  svg[data-flow]:not([data-flow="all"]) .edge, svg[data-flow]:not([data-flow="all"]) .elabel { opacity: .12; }
+  svg[data-flow="sync"] .sync, svg[data-flow="event"] .event, svg[data-flow="data"] .data { opacity: 1 !important; }
+  .flow-note { color: var(--muted); margin: 8px 2px 0; min-height: 1.4em; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-top: 14px; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  code { font-size: 12px; }
+  .tablewrap { overflow-x: auto; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; margin-top: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .card h2 { font-size: 14px; margin: 0 0 6px; }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Requests platform: microservices architecture</h1>
+  <p class="lede">Part B. Five services, each owning its own database. Services call each other synchronously only when the caller needs the answer right away; everything else travels as events through the broker, using a transactional outbox and idempotent consumers. Hover over a box for its API, and pick a flow to highlight it. The full design is in <code>microservices.md</code>; <code>data-flow.html</code> animates the failure and retry scenarios.</p>
+
+  <div class="controls" id="controls">
+    <button data-flow="all" aria-pressed="true">All</button>
+    <button data-flow="sync"><i style="background:var(--f-sync)"></i>Sync REST</button>
+    <button data-flow="event"><i style="background:var(--f-event)"></i>Events (async)</button>
+    <button data-flow="data"><i style="background:var(--f-data)"></i>Data ownership</button>
+  </div>
+
+  <div class="stage">
+    <svg id="svg" viewBox="0 0 1240 680" data-flow="all" role="img" aria-label="Microservices architecture diagram: services, databases, broker and the calls between them"></svg>
+  </div>
+  <p class="flow-note" id="flowNote"></p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Service</th><th>Owns</th><th>Sync API</th><th>Publishes</th><th>Consumes</th></tr></thead>
+    <tbody>
+      <tr><td><b>Customers</b></td><td>customers, contact details</td><td><code>GET /customers/{id}</code>, <code>GET /customers/{id}/contact</code>, <code>POST/PUT /customers</code></td><td><code>CustomerUpdated</code></td><td>—</td></tr>
+      <tr><td><b>Requests</b></td><td>requests, status history, outbox</td><td><code>GET /requests</code> (Part A search), <code>POST /requests</code>, <code>PATCH /requests/{id}/status</code></td><td><code>RequestCreated</code>, <code>RequestStatusChanged</code></td><td>—</td></tr>
+      <tr><td><b>Notifications</b></td><td>notification log (dedupe), preferences</td><td><code>GET /notifications?userId=</code></td><td>—</td><td><code>RequestCreated</code>, <code>RequestStatusChanged</code></td></tr>
+      <tr><td><b>Documents</b></td><td>file metadata; files in blob storage</td><td><code>POST /requests/{id}/documents</code> → pre-signed URL, <code>GET /requests/{id}/documents</code></td><td><code>DocumentUploaded</code></td><td>—</td></tr>
+      <tr><td><b>Reporting</b></td><td>denormalized read model + inbox</td><td><code>GET /reports/...</code></td><td>—</td><td>all events</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="cards">
+    <div class="card"><h2>Communication rules</h2><ul>
+      <li>One DB per service; no service reads another's tables</li>
+      <li>Sync REST only when the caller needs the answer now (validation, lookups)</li>
+      <li>Events for "this happened, react to it" (notifications, reporting)</li>
+      <li>Gateway validates the JWT; each service authorizes from the claims</li></ul></div>
+    <div class="card"><h2>Reliable notifications</h2><ul>
+      <li><b>Outbox:</b> request change + event committed in one DB transaction; a relay publishes it</li>
+      <li><b>Durable queue per consumer:</b> if Notifications is down, events wait</li>
+      <li><b>Idempotent consumers:</b> dedupe on <code>messageId</code>; <code>version</code> drops stale events</li>
+      <li><b>Retry ladder:</b> 3 immediate tries → redelivery 1m/5m/30m/2h → DLQ + alert</li></ul></div>
+    <div class="card"><h2>Sync resilience</h2><ul>
+      <li>Timeout per attempt + overall</li>
+      <li>Retry with backoff + jitter, only for idempotent calls</li>
+      <li>Circuit breaker: fail fast with 503 instead of piling up threads</li>
+      <li>Client <code>Idempotency-Key</code> on POST/PATCH</li></ul></div>
+  </div>
+</div>
+
+<script>
+// [NEW] Part B architecture diagram (static layout + flow highlighting), companion to microservices.md and data-flow.html.
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+const el = (tag, attrs = {}, parent = svg) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+};
+const text = (parent, x, y, cls, str, anchor) => {
+  const t = el('text', { x, y, class: cls, ...(anchor ? { 'text-anchor': anchor } : {}) }, parent);
+  t.textContent = str;
+};
+
+const defs = el('defs');
+for (const f of ['sync', 'event', 'data']) {
+  const m = el('marker', { id: 'a-' + f, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10 z', fill: `var(--f-${f})` }, m);
+}
+
+// zones
+el('rect', { x: 410, y: 55, width: 360, height: 600, rx: 10, class: 'zone' });
+text(svg, 422, 50, 'zlabel', 'Services + their own databases');
+el('rect', { x: 1035, y: 55, width: 170, height: 410, rx: 10, class: 'zone' });
+text(svg, 1043, 50, 'zlabel', 'Consumers');
+
+// [id, cx, cy, w, h, category, title, sub lines, tooltip]
+const nodes = [
+  ['client', 80, 330, 130, 56, 'ext', 'Angular UI', ['Part A client'], 'Calls /api/* with a JWT.'],
+  ['gateway', 255, 330, 175, 70, 'edge', 'API Gateway', ['JWT validation · rate limit', 'routing (AWS: ALB + WAF)'], 'Validates the token and routes by path. Services still authorize from claims.'],
+  ['customers', 500, 100, 150, 60, 'svc', 'Customers', ['REST'], 'GET /customers/{id}, GET /customers/{id}/contact, POST/PUT /customers. Publishes CustomerUpdated.'],
+  ['requests', 500, 260, 150, 60, 'svc', 'Requests', ['REST · outbox relay'], 'GET /requests (Part A search), POST /requests, PATCH /requests/{id}/status. Publishes RequestCreated, RequestStatusChanged.'],
+  ['documents', 500, 420, 150, 60, 'svc', 'Documents', ['REST · pre-signed URLs'], 'POST /requests/{id}/documents → pre-signed upload URL, GET /requests/{id}/documents. Publishes DocumentUploaded.'],
+  ['reporting', 500, 580, 150, 60, 'svc', 'Reporting', ['REST · consumer'], 'GET /reports/... served from its own read model, built from events. Never calls other services at query time.'],
+  ['cdb', 680, 100, 150, 56, 'db', 'Customers DB', ['+ outbox'], 'Owned by Customers only.'],
+  ['rdb', 680, 260, 150, 56, 'db', 'Requests DB', ['+ outbox table'], 'The request change and the outbox row commit in one local transaction (no dual write).'],
+  ['ddb', 680, 420, 150, 56, 'db', 'Doc metadata + blob', ['+ outbox'], 'Files go straight to blob storage via pre-signed URLs.'],
+  ['pdb', 680, 580, 150, 56, 'db', 'Reporting read DB', ['+ inbox (dedupe)'], 'Inbox row + read-model upsert in one transaction.'],
+  ['broker', 900, 340, 140, 300, 'msg', 'Message broker', ['topics:', 'request-events', 'customer-events', 'document-events', '', 'queue per consumer', '+ DLQ each', '', 'RabbitMQ local', 'SNS/SQS on AWS'], 'Durable topics; one queue per consumer, so a down consumer only delays its own queue.'],
+  ['ndb', 1120, 110, 150, 56, 'db', 'Notification log', ['Pending / Sent = dedupe'], 'A unique (MessageId, Channel) row is the dedupe record: Sent → skip, Pending → resend.'],
+  ['notifications', 1120, 270, 150, 60, 'svc', 'Notifications', ['consumer + history API'], 'Consumes RequestCreated/RequestStatusChanged and notifies the owner and assignee.'],
+  ['email', 1120, 410, 150, 56, 'ext', 'Email / SMS', ['external provider'], 'Sent with idempotency key = Notification.Id.'],
+];
+
+const edgeLayer = el('g'), nodeLayer = el('g'), labelLayer = el('g');
+for (const [id, cx, cy, w, h, cat, title, subs, tip] of nodes) {
+  const g = el('g', { class: 'node' }, nodeLayer);
+  el('title', {}, g).textContent = `${title}: ${tip}`;
+  el('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: 8, class: 'box' }, g);
+  el('rect', { x: cx - w / 2, y: cy - h / 2, width: 5, height: h, rx: 2, fill: `var(--c-${cat})` }, g);
+  let y = cy - subs.length * 7.5 + 4;
+  text(g, cx + 2, y, 't', title);
+  for (const s of subs) { y += 15; if (s) text(g, cx + 2, y, 's', s); }
+}
+
+// [flow, points, label?, labelX, labelY, anchor?]
+const edges = [
+  ['sync', [[145, 330], [167, 330]]],
+  ['sync', [[343, 330], [395, 330], [395, 100], [425, 100]], 'REST', 369, 322],
+  ['sync', [[395, 260], [425, 260]]],
+  ['sync', [[395, 420], [425, 420]]],
+  ['sync', [[395, 330], [395, 580], [425, 580]]],
+  ['sync', [[500, 230], [500, 130]], 'validate customer', 506, 184, 'start'],
+  ['sync', [[1045, 255], [1010, 255], [1010, 30], [500, 30], [500, 70]], 'GET /customers/{id}/contact', 760, 24],
+  ['data', [[575, 100], [605, 100]]],
+  ['data', [[575, 260], [605, 260]]],
+  ['data', [[575, 420], [605, 420]]],
+  ['data', [[575, 580], [605, 580]]],
+  ['event', [[755, 260], [830, 260]], 'outbox → publish', 792, 252],
+  ['event', [[755, 100], [800, 100], [800, 220], [830, 220]]],
+  ['event', [[755, 420], [830, 420]]],
+  ['event', [[970, 270], [1045, 270]], 'notif.q', 1007, 288],
+  ['event', [[900, 490], [900, 640], [500, 640], [500, 610]], 'reporting.q', 700, 634],
+  ['data', [[1120, 240], [1120, 138]], 'dedupe', 1126, 190, 'start'],
+  ['sync', [[1120, 300], [1120, 382]], 'send', 1126, 345, 'start'],
+];
+for (const [flow, pts, label, lx, ly, anchor = 'middle'] of edges) {
+  el('polyline', { points: pts.map(p => p.join(',')).join(' '), class: 'edge ' + flow, 'marker-end': `url(#a-${flow})` }, edgeLayer);
+  if (label) text(labelLayer, lx, ly, 'elabel ' + flow, label, anchor);
+}
+
+const notes = {
+  all: '',
+  sync: 'UI → gateway → service. Only two service-to-service calls exist, and both need an answer now: Requests validates the customer on create, and Notifications looks up contact details. Both use timeouts, retries with backoff and a circuit breaker.',
+  event: 'Customers, Requests and Documents write events to their own outbox in the same transaction as the change; a relay publishes them. Each consumer has its own durable queue, so Notifications being down never blocks Requests or Reporting.',
+  data: 'Every service owns its database; no shared tables. Notifications uses its notification log (Pending/Sent) as the dedupe record; Reporting uses an inbox table in the same transaction as its read-model write.',
+};
+const note = document.getElementById('flowNote');
+document.getElementById('controls').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  svg.dataset.flow = b.dataset.flow;
+  note.textContent = notes[b.dataset.flow];
+  for (const x of document.querySelectorAll('#controls button')) x.setAttribute('aria-pressed', String(x === b));
+});
+</script>
+</body>
+</html>

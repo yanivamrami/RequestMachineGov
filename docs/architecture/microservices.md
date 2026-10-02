@@ -1,5 +1,7 @@
 # Part B — Microservices architecture
 
+Diagrams: [microservices-architecture.html](microservices-architecture.html) (services, APIs, broker; flow highlighting) · [data-flow.html](data-flow.html) (animated success/failure/retry scenarios).
+
 ## 1. Goal
 
 Split the system into five services: Customers, Requests, Notifications, Documents, Reporting.

@@ -201,3 +201,23 @@ No code changed, so no performance/security review was run.
 A live retry-ladder strip and a step log track progress. All 7 scenarios were run in the browser pane and end clean (outbox/queues/DLQ = 0, one email each).
 
 Also fixed a bug in my own design doc: a plain inbox row committed before the email send would make a redelivery after a failed send look like a duplicate, so the email would be lost. The Notification row (Pending/Sent) is now the dedupe record for Notifications. The inbox stays for DB-only consumers like Reporting.
+
+## 23. Part C: AWS cloud deployment
+**User:** Plan the Part C cloud deployment for massive scale: (1) review the requirements, (2) explain how the deployment answers the main components, (3) provide an HTML diagram of the AWS deployment.
+
+**Assistant:** Extracted Part C from the spec PDF. It asks for a short sketch on AWS/Azure/GCP covering Compute, DB, Messaging, Monitoring and Scaling; IaC is not required.
+
+Wrote `docs/architecture/cloud-aws.md`:
+- Requirements table and scale assumptions (hundreds of millions of rows, ~5k req/s, 10k events/s bursts).
+- Per-component answers:
+  - Edge: CloudFront + WAF + S3 SPA, Cognito JWT validated in each service.
+  - Compute: ECS Fargate across 3 AZs behind an ALB, Service Connect for sync calls.
+  - DB: Aurora PostgreSQL + RDS Proxy; Requests reads on replicas, monthly partitions, pg_trgm. DynamoDB conditional put for Notifications dedupe; S3 with pre-signed URLs; Redis for idempotency keys.
+  - Messaging: SNS → SQS per consumer; the retry ladder mapped to ChangeMessageVisibility, redrive maxReceiveCount=5 → DLQ; MassTransit SQS transport.
+  - Monitoring: CloudWatch, OTel → X-Ray, alarms mapped to the Part B failure scenarios.
+  - Scaling: ALB request count per target for APIs, SQS backlog per task for workers, Aurora reader auto-scaling.
+  - DR (Aurora Global DB, active-passive) and security.
+- Decision: ECS Fargate vs EKS / Lambda / EC2.
+- Next steps: OpenSearch, Aurora Limitless, analytics lake.
+
+Wrote `docs/architecture/cloud-aws.html`: an SVG diagram (region → VPC → public/app/data subnets, ECS cluster, regional managed services), with flow-highlight buttons (user request, event → notification, data access, observability), hover tooltips, and summary cards per component. Checked in the browser at 1440px; fixed two overlapping group labels.

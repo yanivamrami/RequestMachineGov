@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AWS Deployment Diagram</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --panel: #ffffff; --ink: #1f2328; --muted: #6a6f76; --line: #d4d2cc; --node: #ffffff;
+    --region: #8a8f98; --vpc: #2f8a5b;
+    --pub: rgba(47, 138, 91, .07); --app: rgba(47, 111, 214, .06); --dat: rgba(122, 79, 208, .06);
+    --c-net: #2f8a5b; --c-compute: #d97a0e; --c-data: #2f6fd6; --c-msg: #c2387d; --c-ops: #6a6f76;
+    --f-user: #2f6fd6; --f-event: #c2387d; --f-data: #7a4fd0; --f-ops: #8a8f98;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181c; --panel: #1f2228; --ink: #e8e6e1; --muted: #9a9ea6; --line: #3a3e46; --node: #262a31;
+      --region: #7d828b; --vpc: #4cc27f;
+      --pub: rgba(76, 194, 127, .08); --app: rgba(109, 156, 240, .08); --dat: rgba(168, 136, 240, .08);
+      --c-net: #4cc27f; --c-compute: #f0a040; --c-data: #6d9cf0; --c-msg: #ec6fae; --c-ops: #9a9ea6;
+      --f-user: #6d9cf0; --f-event: #ec6fae; --f-data: #a888f0; --f-ops: #9a9ea6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181c; --panel: #1f2228; --ink: #e8e6e1; --muted: #9a9ea6; --line: #3a3e46; --node: #262a31;
+    --region: #7d828b; --vpc: #4cc27f;
+    --pub: rgba(76, 194, 127, .08); --app: rgba(109, 156, 240, .08); --dat: rgba(168, 136, 240, .08);
+    --c-net: #4cc27f; --c-compute: #f0a040; --c-data: #6d9cf0; --c-msg: #ec6fae; --c-ops: #9a9ea6;
+    --f-user: #6d9cf0; --f-event: #ec6fae; --f-data: #a888f0; --f-ops: #9a9ea6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 14px; max-width: 900px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .controls button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  .controls button[aria-pressed="true"] { border-color: var(--ink); font-weight: 600; }
+  .controls button i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 980px; height: auto; }
+  .grp { fill: none; stroke-width: 1.5; }
+  .grp.region { stroke: var(--region); stroke-dasharray: 8 5; }
+  .grp.vpc { stroke: var(--vpc); }
+  .grp.ecs { stroke: var(--c-compute); stroke-dasharray: 4 4; }
+  .band.pub { fill: var(--pub); } .band.app { fill: var(--app); } .band.dat { fill: var(--dat); }
+  .glabel { font-size: 12px; font-weight: 600; fill: var(--muted); }
+  .node rect.box { fill: var(--node); stroke: var(--line); stroke-width: 1.2; }
+  .node .t { font-size: 13px; font-weight: 650; fill: var(--ink); text-anchor: middle; }
+  .node .s { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+  .node.dashed rect.box { stroke-dasharray: 4 3; }
+  .edge { fill: none; stroke-width: 2; transition: opacity .2s; }
+  .edge.user { stroke: var(--f-user); } .edge.event { stroke: var(--f-event); }
+  .edge.data { stroke: var(--f-data); } .edge.ops { stroke: var(--f-ops); stroke-dasharray: 5 4; }
+  .elabel { font-size: 11px; font-weight: 600; paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; transition: opacity .2s; }
+  .elabel.user { fill: var(--f-user); } .elabel.event { fill: var(--f-event); } .elabel.data { fill: var(--f-data); } .elabel.ops { fill: var(--f-ops); }
+  svg[data-flow]:not([data-flow="all"]) .edge, svg[data-flow]:not([data-flow="all"]) .elabel { opacity: .12; }
+  svg[data-flow="user"] .user, svg[data-flow="event"] .event, svg[data-flow="data"] .data, svg[data-flow="ops"] .ops { opacity: 1 !important; }
+  .flow-note { color: var(--muted); margin: 8px 2px 0; min-height: 1.4em; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .card h2 { font-size: 14px; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+  .card h2 i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .card ul { margin: 0; padding-left: 18px; }
+  .card li { margin: 2px 0; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Requests platform: AWS deployment</h1>
+  <p class="lede">Part C sketch for massive scale: hundreds of millions of requests, ~5k API calls/s and event bursts of 10k/s. Everything runs in one region across 3 Availability Zones, with a warm standby region for disaster recovery. Pick a flow to highlight it, and hover over any box for details. The reasoning is in <code>cloud-aws.md</code>.</p>
+
+  <div class="controls" id="controls">
+    <button data-flow="all" aria-pressed="true">All flows</button>
+    <button data-flow="user"><i style="background:var(--f-user)"></i>User request (sync)</button>
+    <button data-flow="event"><i style="background:var(--f-event)"></i>Event → notification</button>
+    <button data-flow="data"><i style="background:var(--f-data)"></i>Data access</button>
+    <button data-flow="ops"><i style="background:var(--f-ops)"></i>Observability &amp; secrets</button>
+  </div>
+
+  <div class="stage">
+    <svg id="svg" viewBox="0 0 1340 900" data-flow="all" role="img" aria-label="AWS deployment diagram of the Requests platform"></svg>
+  </div>
+  <p class="flow-note" id="flowNote"></p>
+
+  <div class="cards">
+    <div class="card"><h2><i style="background:var(--c-compute)"></i>Compute</h2><ul>
+      <li>ECS on Fargate, one service per microservice, tasks spread over 3 AZs in private subnets</li>
+      <li>ALB with path routing; CloudFront + WAF at the edge; SPA served from S3</li>
+      <li>Service Connect for internal sync REST calls</li>
+      <li>Workers (Notifications, Reporting) scale separately from the APIs</li></ul></div>
+    <div class="card"><h2><i style="background:var(--c-data)"></i>DB</h2><ul>
+      <li>Aurora PostgreSQL per service, behind RDS Proxy</li>
+      <li>Requests: searches go to auto-scaled readers (2–15); monthly partitions on <code>CreatedAt</code>; <code>pg_trgm</code> for partial number search</li>
+      <li>DynamoDB for Notifications: a conditional put = dedupe</li>
+      <li>S3 for documents (pre-signed URLs); Redis for idempotency keys</li></ul></div>
+    <div class="card"><h2><i style="background:var(--c-msg)"></i>Messaging</h2><ul>
+      <li>SNS topic per event type, fanning out to an SQS queue per consumer</li>
+      <li>Retry ladder: 3 in-process tries per receive, then <code>ChangeMessageVisibility</code> backoff of 1m/5m/30m/2h</li>
+      <li>Redrive to a DLQ after 5 receives; standard queues, ordering handled by <code>version</code></li>
+      <li>MassTransit SQS transport; RabbitMQ locally</li></ul></div>
+    <div class="card"><h2><i style="background:var(--c-ops)"></i>Monitoring</h2><ul>
+      <li>CloudWatch logs (JSON + correlationId), Container Insights</li>
+      <li>OpenTelemetry → X-Ray: one trace runs from HTTP → outbox → SQS → SES</li>
+      <li>Alarms: DLQ &gt; 0, age of the oldest queued message, outbox lag, 5xx/p99, circuit breaker open, Aurora lag → PagerDuty</li></ul></div>
+    <div class="card"><h2><i style="background:var(--c-net)"></i>Scaling</h2><ul>
+      <li>APIs: target tracking on ALB requests per target and CPU</li>
+      <li>Workers: SQS backlog per task (~100); scale out on bursts, back to the minimum when idle</li>
+      <li>Aurora reader auto-scaling; DynamoDB on-demand; SNS/SQS/S3 managed</li>
+      <li>Consumer concurrency limits act as back-pressure on the DBs and SES</li></ul></div>
+    <div class="card"><h2><i style="background:var(--region)"></i>Availability &amp; DR</h2><ul>
+      <li>Multi-AZ everywhere; Aurora failover typically under 30s</li>
+      <li>Standby region: Aurora Global DB, DynamoDB global tables, S3 replication, Route 53 failover</li>
+      <li>RPO ≈ seconds, RTO ≈ 15–30 min (active-passive)</li></ul></div>
+  </div>
+</div>
+
+<script>
+// [NEW] Part C AWS deployment diagram, drawn from the data below so boxes and lines stay aligned.
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+const el = (tag, attrs = {}, parent = svg) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+};
+const text = (parent, x, y, cls, str) => { el('text', { x, y, class: cls }, parent).textContent = str; };
+
+// arrowheads, one per flow colour
+const defs = el('defs');
+for (const f of ['user', 'event', 'data', 'ops']) {
+  const m = el('marker', { id: 'a-' + f, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+  el('path', { d: 'M0,0 L10,5 L0,10 z', fill: `var(--f-${f})` }, m);
+}
+
+// ---- groups: region, VPC, subnet bands, ECS cluster ----
+el('rect', { x: 220, y: 20, width: 1105, height: 860, rx: 12, class: 'grp region' });
+text(svg, 236, 42, 'glabel', 'AWS Region (primary) · warm standby region mirrors it for DR');
+el('rect', { x: 240, y: 55, width: 690, height: 810, rx: 10, class: 'grp vpc' });
+el('text', { x: 918, y: 50, class: 'glabel', 'text-anchor': 'end' }).textContent = 'VPC · 3 Availability Zones';
+el('rect', { x: 252, y: 70, width: 666, height: 100, rx: 8, class: 'band pub' });
+text(svg, 262, 88, 'glabel', 'Public subnets');
+el('rect', { x: 252, y: 185, width: 666, height: 335, rx: 8, class: 'band app' });
+text(svg, 262, 203, 'glabel', 'Private app subnets');
+el('rect', { x: 252, y: 535, width: 666, height: 320, rx: 8, class: 'band dat' });
+text(svg, 262, 553, 'glabel', 'Private data subnets');
+el('rect', { x: 265, y: 215, width: 640, height: 290, rx: 8, class: 'grp ecs' });
+text(svg, 640, 232, 'glabel', 'ECS cluster · Fargate');
+text(svg, 1000, 42, 'glabel', 'Regional services · via VPC endpoints');
+text(svg, 30, 42, 'glabel', 'Global / client');
+
+// ---- nodes: [id, cx, cy, w, h, category, title, sub lines, tooltip] ----
+const nodes = [
+  ['users', 115, 90, 150, 50, 'net', 'Users', ['browser · Angular SPA'], 'End users. They log in through Cognito and call /api/* with a JWT.'],
+  ['r53', 115, 190, 150, 56, 'net', 'Route 53', ['DNS · failover routing'], 'Health-checked failover to the standby region.'],
+  ['cf', 115, 300, 150, 64, 'net', 'CloudFront', ['WAF · Shield', 'edge cache'], 'Single entry point. WAF: rate limits, OWASP managed rules, bot control. Caches the SPA at the edge.'],
+  ['s3web', 115, 420, 150, 56, 'data', 'S3 · SPA', ['Angular build (OAC)'], 'Private bucket, readable only by CloudFront (Origin Access Control).'],
+  ['cognito', 115, 540, 150, 56, 'net', 'Cognito / IdP', ['OIDC login → JWT'], 'Issues JWTs. Each service validates them with cached JWKS and applies the owner/assignee/admin rules from the claims.'],
+  ['alb', 480, 120, 190, 56, 'net', 'Application LB', ['TLS · path routing · 3 AZ'], '/api/requests → Requests, /api/customers → Customers, and so on. Plays the API-gateway role.'],
+  ['requests', 375, 280, 190, 70, 'compute', 'Requests API', ['+ outbox relay', '6–60 tasks'], 'Search (Part A) and create/status change. The outbox relay runs as a hosted service holding an advisory lock.'],
+  ['customers', 585, 280, 190, 70, 'compute', 'Customers API', ['2–20 tasks'], 'Customer data and contact details. Called synchronously by Requests and Notifications.'],
+  ['documents', 795, 280, 190, 70, 'compute', 'Documents API', ['pre-signed URLs', '2–20 tasks'], 'Hands out pre-signed S3 URLs. File bytes never pass through the service.'],
+  ['otel', 395, 420, 150, 50, 'ops', 'OTel collector', ['sidecar in every task'], 'ADOT sidecar: traces to X-Ray, metrics to CloudWatch.', true],
+  ['notifications', 585, 420, 190, 70, 'compute', 'Notifications worker', ['scales on SQS backlog', '1–100 tasks'], 'Consumes request events. Dedupe via a DynamoDB conditional put, then sends with SES.'],
+  ['reporting', 795, 420, 190, 70, 'compute', 'Reporting API + worker', ['2–40 tasks'], 'Builds a denormalized read model from events and serves reports from it.'],
+  ['proxy', 585, 590, 620, 50, 'data', 'RDS Proxy (one per cluster)', ['connection pooling · IAM auth · faster failover'], 'Hundreds of Fargate tasks share a small pool of DB connections.'],
+  ['aReq', 375, 705, 190, 90, 'data', 'Aurora PostgreSQL', ['Requests · 1 writer', '+ 2–15 auto-scaled readers', 'monthly partitions · pg_trgm'], 'Searches use the reader endpoint, writes the writer. Partition pruning on CreatedAt; trigram GIN index for partial RequestNumber search.'],
+  ['aCus', 585, 705, 190, 90, 'data', 'Aurora PostgreSQL', ['Customers', 'writer + 1 reader'], 'Small relational store owned by Customers.'],
+  ['aRep', 795, 705, 190, 90, 'data', 'Aurora PostgreSQL', ['Reporting read model', 'writer + readers'], 'Denormalized tables fed by events. Reports never load the Requests DB.'],
+  ['redis', 585, 812, 620, 44, 'data', 'ElastiCache for Redis (Multi-AZ)', ['Idempotency-Key responses (24h TTL) · hot lookups'], 'Stores client idempotency results and caches customer contact lookups.'],
+  ['sns', 1150, 110, 300, 60, 'msg', 'SNS topics', ['request-events · customer-events · document-events'], 'One topic per event type. Fan-out without consumers knowing about each other.'],
+  ['sqs', 1150, 225, 300, 74, 'msg', 'SQS queue per consumer', ['notifications.q · reporting.q', 'redrive → DLQ after 5 receives'], 'Standard queues. Retry ladder: 3 in-process tries, then visibility timeout 1m/5m/30m/2h, then DLQ + alarm.'],
+  ['ddb', 1150, 335, 300, 56, 'data', 'DynamoDB · Notifications', ['conditional put on MessageId = dedupe'], 'On-demand capacity. attribute_not_exists(MessageId) makes the dedupe atomic. Status Pending/Sent.'],
+  ['s3docs', 1150, 435, 300, 56, 'data', 'S3 · Documents', ['SSE-KMS · direct browser upload'], 'The browser uploads and downloads directly with short-lived pre-signed URLs.'],
+  ['ses', 1150, 535, 300, 56, 'msg', 'SES + End User Messaging', ['email · SMS'], 'Outbound notifications. Sending quota raised ahead of peak.'],
+  ['cw', 1150, 650, 300, 64, 'ops', 'CloudWatch · X-Ray', ['logs · metrics · traces · alarms', '→ PagerDuty / Slack'], 'Alarms: DLQ > 0, age of the oldest queued message, outbox lag, 5xx/p99, circuit breaker open, Aurora replica lag.'],
+  ['sec', 1150, 770, 300, 64, 'ops', 'Secrets Manager · KMS · ECR', ['rotated DB creds · encryption keys', 'container images (scan on push)'], 'An IAM task role per service, least privilege.'],
+];
+
+const nodeLayer = el('g');
+const edgeLayer = el('g');
+svg.insertBefore(edgeLayer, nodeLayer);
+for (const [id, cx, cy, w, h, cat, title, subs, tip, dashed] of nodes) {
+  const g = el('g', { class: 'node' + (dashed ? ' dashed' : '') }, nodeLayer);
+  el('title', {}, g).textContent = `${title}: ${tip}`;
+  el('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: 8, class: 'box' }, g);
+  el('rect', { x: cx - w / 2, y: cy - h / 2, width: 5, height: h, rx: 2, fill: `var(--c-${cat})` }, g);
+  const lines = 1 + subs.length;
+  let y = cy - (lines - 1) * 7.5 + 4;
+  text(g, cx + 2, y, 't', title);
+  for (const s of subs) { y += 15; text(g, cx + 2, y, 's', s); }
+}
+
+// ---- edges: [flow, points, label?, labelX, labelY, arrow?] ----
+const edges = [
+  ['user', [[115, 115], [115, 162]]],
+  ['user', [[115, 218], [115, 268]]],
+  ['user', [[115, 332], [115, 392]], 'static', 140, 368],
+  ['user', [[190, 300], [230, 300], [230, 120], [385, 120]], '/api/*', 300, 112],
+  ['user', [[40, 90], [26, 90], [26, 540], [40, 540]], 'login', 24, 330],
+  ['user', [[420, 148], [420, 245]]],
+  ['user', [[540, 148], [540, 245]]],
+  ['user', [[575, 120], [905, 120], [905, 280], [890, 280]]],
+  ['user', [[905, 280], [905, 420], [890, 420]]],
+  ['user', [[470, 280], [490, 280]], 'sync REST · Service Connect', 480, 336],
+  ['event', [[350, 245], [350, 180], [960, 180], [960, 110], [1000, 110]], 'outbox relay → publish', 640, 175],
+  ['event', [[795, 245], [795, 180]], null, 0, 0, false],
+  ['event', [[1150, 140], [1150, 188]], 'fan-out', 1180, 168],
+  ['event', [[1000, 240], [920, 240], [920, 470], [585, 470], [585, 455]], 'long-poll', 965, 232],
+  ['event', [[795, 470], [795, 455]]],
+  ['event', [[630, 455], [630, 490], [950, 490], [950, 535], [1000, 535]], 'send', 975, 527],
+  ['event', [[950, 490], [950, 335], [1000, 335]], 'dedupe', 975, 327],
+  ['data', [[300, 315], [300, 565]]],
+  ['data', [[680, 300], [690, 300], [690, 565]]],
+  ['data', [[860, 455], [860, 565]]],
+  ['data', [[375, 615], [375, 660]]],
+  ['data', [[585, 615], [585, 660]]],
+  ['data', [[795, 615], [795, 660]]],
+  ['data', [[890, 300], [975, 300], [975, 435], [1000, 435]], 'pre-signed', 940, 292],
+  ['ops', [[930, 650], [1000, 650]], 'telemetry', 965, 642],
+  ['ops', [[930, 770], [1000, 770]], 'secrets · images', 965, 762],
+];
+for (const [flow, pts, label, lx, ly, arrow = true] of edges) {
+  const attrs = { points: pts.map(p => p.join(',')).join(' '), class: 'edge ' + flow };
+  if (arrow) attrs['marker-end'] = `url(#a-${flow})`;
+  el('polyline', attrs, edgeLayer);
+  if (label) {
+    const t = el('text', { x: lx, y: ly, class: 'elabel ' + flow, 'text-anchor': 'middle' }, nodeLayer.parentNode);
+    t.textContent = label;
+  }
+}
+
+// ---- flow highlighting ----
+const notes = {
+  all: '',
+  user: 'User → Route 53 → CloudFront (WAF) → ALB → service. The service validates the JWT and enforces permissions. Requests calls Customers synchronously over Service Connect.',
+  event: 'Requests commits the row + outbox → the relay publishes to SNS → SQS queue per consumer → Notifications dedupes in DynamoDB and sends through SES; Reporting updates its read model. Failures retry with growing visibility timeouts, then go to the DLQ.',
+  data: 'Services reach Aurora only through RDS Proxy. Searches go to reader replicas. Documents hand out pre-signed S3 URLs, so the browser talks to S3 directly.',
+  ops: 'Every task ships logs, metrics and traces through the OTel sidecar. Secrets come from Secrets Manager; images from ECR. All through VPC endpoints.',
+};
+const note = document.getElementById('flowNote');
+document.getElementById('controls').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  svg.dataset.flow = b.dataset.flow;
+  note.textContent = notes[b.dataset.flow];
+  for (const x of document.querySelectorAll('#controls button')) x.setAttribute('aria-pressed', String(x === b));
+});
+</script>
+</body>
+</html>

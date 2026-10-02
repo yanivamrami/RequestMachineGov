@@ -129,3 +129,27 @@ Task T2 → Completed. Plans not committed yet (uncommitted on the phase-1 branc
 **Agent (Sonnet) → orchestrator:** Built `frontend/` (Angular 21.2, zoneless, Vitest) per PLAN-FRONTEND.md. `ng build` OK; `ng test` 4/4 passing. Deviations: serverErrors signal instead of setErrors (avoids stale errors blocking submit); invalid user id sends no identity headers at all; a failed Next clears rows (Previous still works); the generated 20 KB welcome page was deleted with a one-line [OLD] note; JSON files can't hold [NEW] comments; no cancellation test. A fresh npm install needed `--legacy-peer-deps` (npm 10.9 bug).
 
 **Orchestrator review (assistant):** Re-ran build and tests myself (passing, 4/4). Confirmed no files outside `frontend/` changed, every source file is annotated, no innerHTML or bypassSecurity, node_modules/dist/.angular are git-ignored. Read the core logic: the cursor stack, switchMap + inner catchError, the identity interceptor, the 400 field mapping and the empty-page states are correct. One fix: added `frontend/.npmrc` (`legacy-peer-deps=true`) so a reviewer's plain `npm install` works (verified). Accepted the agent's deviations. Open dependency for Phase 2: the 400 `errors` keys must be plain property names (e.g. `RequestNumber`) for field-level display. Committed on `feat/phase-2-search`.
+
+## 2026-10-02 — UI redesign (/impeccable)
+**User:** Redesign the Requests page with /impeccable — simple demo, but looks count; easy to use, tidy, welcoming.
+**Assistant:** Picked "Warm & calm" direction (user chose it). Rewrote styles.css with OKLCH tokens (warm paper, white cards, deep-teal accent, Figtree font); header with intro + "Viewing as" identity pill; filters in one card on a responsive grid, status as checkbox chips, Reset/Search right-aligned; results card with progress bar, sort arrows, colored status pills, "Unassigned" label, friendlier dates, teaching empty state with "Clear filters"; page size moved to the pager footer ("Rows per page"). Added `label()` helper ('InProgress' -> 'In progress'). Logic/validation/a11y bindings unchanged; old markup/CSS kept as [OLD] blocks. Verified in browser at 1280px and 375px (data, empty, validation states); detector clean; `ng test` 4/4 pass. Root cause of the screenshot's error banner: API wasn't running on :60702 (proxy target).
+
+## 18. Phase 2 backend + PR stack
+**User:** Agreed with `[FromQuery]` (search is a GET). Start Phase 2 backend as planned, as a PR stacked on the existing one. Mid-turn: "where did you create PR1? I don't see it."
+
+**Assistant:**
+- PR 1 had never been opened: I had misread "PR1 will wait for my review" as "don't open it". Pushed `fix/phase-1-current-code` and opened PR #1 → main, bound to the session.
+- Implemented Phase 2 on `feat/phase-2-search`:
+  - `RequestSearchQuery` ([FromQuery]; data annotations + IValidatableObject; regex whitelist; enum whitelist with `Enum.IsDefined`).
+  - `RequestCursor` (hex JSON of the last row's 4 sort values + Id, bound to sortBy/sortDir, unsigned by design).
+  - `RequestPage` (items/nextCursor/hasMore).
+  - Repository `SearchAsync`: permission → filters → keyset → ORDER BY (key, Id) → Take(n+1) → DTO.
+  - Service: n+1 → hasMore + nextCursor.
+  - Controller [FromQuery]; JsonStringEnumConverter.
+  All changes annotated [OLD]/[NEW].
+- Tests 22/22: keyset walk for all 8 sort/direction combinations with ties, combined filters, 9 validation cases plus a valid one, and the Phase 1 tests ported.
+- Mutation check: deliberately breaking the Status tie-breaker still passed with page size 4 (data aligned exactly with group size). Fixed the test with page size 3, and the same mutation now fails.
+- HTTP smoke test: paging, filters and string enums OK; 9 invalid inputs → 400 with PascalCase field keys (match the client's case-insensitive mapping); no header → 401.
+- Performance review: fixed F-003 by rewriting the keyset as the index-seekable `key <= v AND (key < v OR Id < id)`. Accepted with reasons: admin sort by status/type lacks a (key, Id) index; the permission OR needs a per-page sort; LIKE contains; double cursor decode; template method calls.
+- Security review: no findings ≥ 8; added a controls table to SECURITY-LOG.
+- Noticed ~330 lines of uncommitted styling edits in `frontend/` that I didn't make. Left them uncommitted and out of PR 2.

@@ -13,13 +13,11 @@ Candidate take-home test (spec: `~/Downloads/מבחן מקצועי.pdf`, Hebrew)
 
 ## Commands
 
-No `.sln` file — target project files directly.
-
 ```bash
-dotnet build src/Requests.Api/Requests.Api.csproj
+dotnet build
 dotnet run --project src/Requests.Api          # https://localhost:60701, Swagger at /swagger
-dotnet test tests/Requests.Tests
-dotnet test tests/Requests.Tests --filter "FullyQualifiedName~RequestServiceTests.Administrator_CanSeeAllRequests"
+dotnet test
+dotnet test --filter "FullyQualifiedName~RequestServiceTests.Administrator_CanSeeAllRequests"
 ```
 
 ## Architecture
@@ -28,10 +26,10 @@ dotnet test tests/Requests.Tests --filter "FullyQualifiedName~RequestServiceTest
 
 - **Domain** — `Request` entity, `RequestStatus` and `RequestType` enums. No dependencies.
 - **Application** — `RequestService` (permission filtering + mapping to `RequestDto`) and the `IRequestRepository` abstraction it depends on.
-- **Infrastructure** — EF Core **in-memory** provider (`RequestsDbContext`), `RequestRepository`, `DbSeeder` (500 deterministic rows, `Random(42)`, owners 1–5, every 7th unassigned). `AddInfrastructure()` registers the DbContext, repository, *and* `RequestService`.
+- **Infrastructure** — EF Core **in-memory** provider (`RequestsDbContext`), `RequestRepository`, `DbSeeder` (500 deterministic rows, `Random(42)`, owners 1–5, every 7th unassigned). `AddInfrastructure()` registers the DbContext and repository; `RequestService` is registered in `Program.cs`. Indexes are declared in `RequestsDbContext.OnModelCreating` (ignored by the in-memory provider).
 - **Api** — `RequestsController` (`GET /api/requests`). Seeding runs at startup in `Program.cs`.
 
-Current user identity comes from request headers `X-User-Id` (int; silently defaults to 1 if missing/invalid) and `X-Is-Admin` (`true`/`false`). These are client-controlled — a stand-in for real auth.
+Current user identity comes from request headers `X-User-Id` (int; missing/invalid → 401) and `X-Is-Admin` (`true`/`false`). These are client-controlled — a stand-in for real auth.
 
 Known starting-point weaknesses (relevant to the task):
 - `RequestRepository.GetAllAsync` materializes the whole table; permission filtering then happens in memory in `RequestService`. Filters/sort/paging must be pushed into the `IQueryable`.

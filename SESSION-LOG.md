@@ -75,3 +75,21 @@ Added a short `.gitignore` (bin/obj, node_modules/dist, .DS_Store, .claude/setti
 **User:** For the global error handling task (1.6): production must never return sensitive data or exception details; development should show exceptions to help debugging. This must be noted in the code as well.
 
 **Assistant:** Updated PLAN.md 1.6: `AddProblemDetails()` everywhere; `UseExceptionHandler()` only outside Development, which gives a generic 500 ProblemDetails with only a traceId and logs the exception on the server. Development uses the built-in Developer Exception Page (full exception + stack trace as ProblemDetails JSON). Fails closed: if the environment is unset, it defaults to Production. 400 validation errors list only the caller's invalid fields. The behavior will be documented in a `[NEW]` comment in Program.cs. No code changed yet.
+
+## 11. Phase 1 implementation
+**User:** Keep the `[OLD]` comments in the final submission; start Phase 1; the repo is published (origin: github.com/yanivamrami/RequestMachineGov).
+
+**Assistant:** On branch `fix/phase-1-current-code`:
+- Added `CandidateTest.sln`.
+- `IRequestRepository.GetAllAsync` → `GetVisibleAsync(userId, isAdmin)`: permission WHERE, newest-first order (Id tie-breaker), `.Select` to DTO, all in one query. `RequestService` delegates to it.
+- Controller: `[FromHeader]` identity (visible in Swagger); a missing/invalid/non-positive `X-User-Id` → 401.
+- Service registration moved to Program.cs.
+- 5 indexes plus `RequestNumber` max length 20, unique.
+- `AddProblemDetails` with traceId; `UseExceptionHandler` outside Development only.
+- Tests rewritten against the real repository + EF in-memory (3 tests: admin, exact visible set incl. null assignee, ordering).
+Every change is annotated `[OLD]`/`[NEW]`.
+Verified: build clean, 3/3 tests pass. Smoke tests in Production and Development: 401 without a header, user 1 = 186 rows, admin = 500. A temporary throwing endpoint confirmed Production returns a generic 500 and Development the full exception, with the exception logged on the server in both. That check found the production 500 missing `traceId`, fixed with `CustomizeProblemDetails`.
+Reviews (saved in `docs/reviews/`):
+- Performance: F-001 unbounded result (deferred to Phase 2, by plan), F-002 the OR predicate's index usage needs verification on a real DB, F-003 index write cost (low).
+- Security: no findings ≥ 8 confidence; the known pre-existing risk is that `X-Is-Admin` can be spoofed.
+Committed locally (2 commits on the branch). Not pushed; no PR yet.

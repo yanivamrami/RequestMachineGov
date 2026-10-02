@@ -1,0 +1,17 @@
+# .NET
+bin/
+obj/
+TestResults/
+*.user
+.vs/
+.idea/
+
+# Frontend
+node_modules/
+dist/
+.angular/
+
+# OS / local
+.DS_Store
+.env
+.claude/settings.local.json

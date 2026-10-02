@@ -6,7 +6,7 @@ A search API and an Angular UI for Requests (Part A), a microservices design wit
 |---|---|
 | A — Backend | `src/` (.NET 8, clean architecture) + `tests/` |
 | A — Frontend | `frontend/` (Angular 21) |
-| B — Microservices architecture | [docs/architecture/microservices.md](docs/architecture/microservices.md) + animated flow [data-flow.html](docs/architecture/data-flow.html) |
+| B — Microservices architecture | [docs/architecture/microservices.md](docs/architecture/microservices.md) + diagram [microservices-architecture.html](docs/architecture/microservices-architecture.html) + animated flow [data-flow.html](docs/architecture/data-flow.html) |
 | C — Cloud deployment (AWS) | [docs/architecture/cloud-aws.md](docs/architecture/cloud-aws.md) + diagram [cloud-aws.html](docs/architecture/cloud-aws.html) |
 | AI usage | [AI-usage.md](AI-usage.md) |
 | Review trail | [docs/reviews/](docs/reviews/): performance & security logs and reports per phase |

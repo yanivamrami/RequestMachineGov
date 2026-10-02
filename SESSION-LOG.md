@@ -321,3 +321,4 @@ Docs:
 - AI-usage.md: new section 6 on the independent review.
 
 Next: the standalone microservices architecture HTML, added to PR 4.
+- Microservices diagram: added `docs/architecture/microservices-architecture.html` to PR 4 (`feat/phase-4-architecture`). It shows services with their own DBs, the gateway, the broker, and sync/event/data flows with highlighting, plus an API/events table. It is linked from microservices.md and the README. Checked in the browser at 1400px (fixed a gateway text overflow and a label overlap). Merged PR 4 → PR 5 → PR 6 branches with merge commits, so the stack stays consistent.

@@ -153,3 +153,16 @@ Task T2 → Completed. Plans not committed yet (uncommitted on the phase-1 branc
 - Performance review: fixed F-003 by rewriting the keyset as the index-seekable `key <= v AND (key < v OR Id < id)`. Accepted with reasons: admin sort by status/type lacks a (key, Id) index; the permission OR needs a per-page sort; LIKE contains; double cursor decode; template method calls.
 - Security review: no findings ≥ 8; added a controls table to SECURITY-LOG.
 - Noticed ~330 lines of uncommitted styling edits in `frontend/` that I didn't make. Left them uncommitted and out of PR 2.
+
+## 19. PR 3: frontend redesign
+**User:** Checking the client themselves for now. Commit the frontend changes as PR 3.
+
+**Assistant:** Reviewed the uncommitted `frontend/` diff (7 files, +333/-72): a "warm & calm" redesign with a header + "Viewing as" identity panel, restyled form/table, a status display label ('InProgress' → 'In progress', API value unchanged), and the Figtree font from Google Fonts. Already annotated [OLD]/[NEW]. Verified: no unsafe HTML; `ng build` OK; `ng test` 4/4. Committed on `feat/phase-3-ui-redesign` (stacked on Phase 2) and opened PR 3 against `feat/phase-2-search`.
+
+## 20. Reviews on PR 3
+**User:** Run both reviews on PR 3.
+
+**Assistant:** Read the full PR 3 diff (8 files).
+- Performance (Angular checklist): F-001 Sev 3, the Google Fonts stylesheet is render-blocking. F-002 Sev 3, template helper calls (accepted).
+- Security: nothing at or above the bar; one Low item, F-001: Google Fonts sends the visitor's IP to Google (privacy/GDPR, no SRI possible).
+Both Google Fonts items have the same fix, self-hosting the font, and are logged as "Open, user decision" since the font was the user's design choice. Reports and log entries added under docs/reviews/; committed and pushed to PR 3.

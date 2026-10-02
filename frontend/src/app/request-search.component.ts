@@ -150,6 +150,11 @@ export class RequestSearchComponent {
     this.restart();
   }
 
+  // [NEW] Human label for a status enum value ('InProgress' -> 'In progress'); the API value stays unchanged.
+  label(s: Status) {
+    return s === 'InProgress' ? 'In progress' : s;
+  }
+
   ariaSort(by: SortBy) {
     const s = this.sort();
     return s.sortBy !== by ? 'none' : s.sortDir === 'asc' ? 'ascending' : 'descending';

@@ -1,25 +1,21 @@
 <!-- [NEW] Search page template: filter form, states, table, pager. -->
-<form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
-  <div class="field">
+<!-- [OLD] Replaced (redesign): one flex-wrapped row of unstyled fields, stacked Search/Reset buttons, page size among the filters,
+     plain-text status cells and a bare pager. Bindings, validation and a11y attributes below are unchanged.
+     Full previous markup: git show e633800:frontend/src/app/request-search.component.html -->
+<!-- [NEW] Filters sit in one card: text/select/date fields on a grid, status as toggle chips, actions on the right. -->
+<form class="card filters" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+  <div class="field field-number">
     <label for="requestNumber">Request number</label>
-    <input id="requestNumber" type="text" maxlength="20" formControlName="requestNumber"
+    <input id="requestNumber" type="text" maxlength="20" formControlName="requestNumber" placeholder="e.g. REQ-000123" autocomplete="off"
       [attr.aria-invalid]="!!err('requestNumber')" [attr.aria-describedby]="err('requestNumber') ? 'err-requestNumber' : null" />
     @if (err('requestNumber'); as m) { <span id="err-requestNumber" class="error">{{ m }}</span> }
   </div>
-
-  <fieldset [attr.aria-invalid]="!!err('status')" [attr.aria-describedby]="err('status') ? 'err-status' : null">
-    <legend>Status</legend>
-    @for (s of statuses; track s) {
-      <label><input type="checkbox" #c [checked]="form.controls.status.value.includes(s)" (change)="toggleStatus(s, c.checked)" /> {{ s }}</label>
-    }
-    @if (err('status'); as m) { <span id="err-status" class="error">{{ m }}</span> }
-  </fieldset>
 
   <div class="field">
     <label for="requestType">Type</label>
     <select id="requestType" formControlName="requestType"
       [attr.aria-invalid]="!!err('requestType')" [attr.aria-describedby]="err('requestType') ? 'err-requestType' : null">
-      <option value="">Any</option>
+      <option value="">Any type</option>
       @for (t of types; track t) { <option [value]="t">{{ t }}</option> }
     </select>
     @if (err('requestType'); as m) { <span id="err-requestType" class="error">{{ m }}</span> }
@@ -39,18 +35,20 @@
     @if (err('createdTo'); as m) { <span id="err-createdTo" class="error">{{ m }}</span> }
   </div>
 
-  <div class="field">
-    <label for="pageSize">Page size</label>
-    <select id="pageSize" formControlName="pageSize" (change)="changePageSize()"
-      [attr.aria-invalid]="!!err('pageSize')" [attr.aria-describedby]="err('pageSize') ? 'err-pageSize' : null">
-      @for (n of sizes; track n) { <option [ngValue]="n">{{ n }}</option> }
-    </select>
-    @if (err('pageSize'); as m) { <span id="err-pageSize" class="error">{{ m }}</span> }
-  </div>
+  <!-- [NEW] Same native checkboxes, styled as chips; the whole chip is the click target. -->
+  <fieldset class="statuses" [attr.aria-invalid]="!!err('status')" [attr.aria-describedby]="err('status') ? 'err-status' : null">
+    <legend>Status</legend>
+    <div class="chips">
+      @for (s of statuses; track s) {
+        <label class="chip" [attr.data-status]="s"><input type="checkbox" #c [checked]="form.controls.status.value.includes(s)" (change)="toggleStatus(s, c.checked)" /> {{ label(s) }}</label>
+      }
+    </div>
+    @if (err('status'); as m) { <span id="err-status" class="error">{{ m }}</span> }
+  </fieldset>
 
-  <div class="field">
-    <button type="submit" [disabled]="loading()">Search</button>
-    <button type="button" (click)="reset()" [disabled]="loading()">Reset</button>
+  <div class="actions">
+    <button type="button" class="btn btn-ghost" (click)="reset()" [disabled]="loading()">Reset</button>
+    <button type="submit" class="btn btn-primary" [disabled]="loading()">Search</button>
   </div>
 </form>
 
@@ -61,50 +59,84 @@
 </div>
 
 @if (error(); as e) {
-  <div class="banner" role="alert">{{ e.text }} @if (e.traceId) { <small>(trace id: {{ e.traceId }})</small> }</div>
+  <div class="banner" role="alert">
+    <strong>{{ e.text }}</strong>
+    @if (e.traceId) { <small>Trace id: {{ e.traceId }}</small> }
+  </div>
 }
 
-<div [class.dim]="loading()" [attr.aria-busy]="loading()">
-  @if (rows().length) {
-    <table>
-      <caption class="sr-only">Requests search results</caption>
-      <thead>
-        <tr>
-          @for (c of cols; track c.label) {
-            @if (c.sortBy; as by) {
-              <th scope="col" [attr.aria-sort]="ariaSort(by)">
-                <button type="button" (click)="toggleSort(by)" [disabled]="loading()">{{ c.label }}</button>
-              </th>
-            } @else {
-              <th scope="col">{{ c.label }}</th>
-            }
-          }
-        </tr>
-      </thead>
-      <tbody>
-        @for (r of rows(); track r.id) {
+<!-- [NEW] Results card: thin progress bar while loading, horizontal scroll on narrow screens, pager in the card footer. -->
+<section class="card results" [attr.aria-busy]="loading()">
+  @if (loading()) { <div class="progress" aria-hidden="true"></div> }
+  <div class="table-wrap" [class.dim]="loading() && rows().length">
+    @if (rows().length) {
+      <table>
+        <caption class="sr-only">Requests search results</caption>
+        <thead>
           <tr>
-            <td>{{ r.id }}</td>
-            <td>{{ r.requestNumber }}</td>
-            <td>{{ r.customerId }}</td>
-            <td>{{ r.ownerId }}</td>
-            <td>{{ r.assignedToUserId ?? '-' }}</td>
-            <td>{{ r.status }}</td>
-            <td>{{ r.requestType }}</td>
-            <!-- [NEW] 'UTC' so display doesn't depend on a Z suffix (review note 3) -->
-            <td>{{ r.createdAt | date: 'yyyy-MM-dd HH:mm' : 'UTC' }}</td>
+            @for (c of cols; track c.label) {
+              @if (c.sortBy; as by) {
+                <th scope="col" [attr.aria-sort]="ariaSort(by)">
+                  <!-- [NEW] Arrow shows the active sort; faint double arrow hints the column is sortable. -->
+                  <button type="button" class="sort" (click)="toggleSort(by)" [disabled]="loading()">
+                    {{ c.label }}
+                    <span class="arrow" aria-hidden="true">{{ ariaSort(by) === 'ascending' ? '↑' : ariaSort(by) === 'descending' ? '↓' : '↕' }}</span>
+                  </button>
+                </th>
+              } @else {
+                <th scope="col">{{ c.label }}</th>
+              }
+            }
           </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track r.id) {
+            <tr>
+              <td class="num muted">{{ r.id }}</td>
+              <td class="strong">{{ r.requestNumber }}</td>
+              <td class="num">{{ r.customerId }}</td>
+              <td class="num">{{ r.ownerId }}</td>
+              <td class="num">@if (r.assignedToUserId != null) { {{ r.assignedToUserId }} } @else { <span class="muted">Unassigned</span> }</td>
+              <!-- [NEW] Status as a colored pill so it can be scanned down the column. -->
+              <td><span class="pill" [attr.data-status]="r.status">{{ label(r.status) }}</span></td>
+              <td>{{ r.requestType }}</td>
+              <!-- [NEW] 'UTC' so display doesn't depend on a Z suffix (review note 3) -->
+              <td class="num nowrap">{{ r.createdAt | date: 'd MMM yyyy, HH:mm' : 'UTC' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else if (loading()) {
+      <p class="empty">Loading requests…</p>
+    } @else if (!error()) {
+      <!-- [NEW] Page 0 empty = no match; later page empty = data changed between clicks (review note 2), Previous stays enabled. -->
+      <div class="empty">
+        @if (pageIndex() === 0) {
+          <p class="empty-title">No requests match these filters</p>
+          <p>Try a shorter request number, more statuses or a wider date range.</p>
+          <button type="button" class="btn btn-ghost" (click)="reset()">Clear filters</button>
+        } @else {
+          <p class="empty-title">No more results</p>
+          <p>Go back to the previous page.</p>
         }
-      </tbody>
-    </table>
-  } @else if (!loading() && !error()) {
-    <!-- [NEW] Page 0 empty = no match; later page empty = data changed between clicks (review note 2), Previous stays enabled. -->
-    <p>{{ pageIndex() === 0 ? 'No requests match your filters. Try Reset.' : 'No more results' }}</p>
-  }
-</div>
+      </div>
+    }
+  </div>
 
-<div class="pager">
-  <button type="button" (click)="prev()" [disabled]="loading() || pageIndex() === 0">Previous</button>
-  <span>Page {{ pageIndex() + 1 }}</span>
-  <button type="button" (click)="next()" [disabled]="loading() || !hasMore()">Next</button>
-</div>
+  <!-- [NEW] Page size moved here from the filters: it controls paging, not what matches. Same control, same handler. -->
+  <footer class="pager">
+    <label class="page-size">
+      Rows per page
+      <select [formControl]="form.controls.pageSize" (change)="changePageSize()"
+        [attr.aria-invalid]="!!err('pageSize')" [attr.aria-describedby]="err('pageSize') ? 'err-pageSize' : null">
+        @for (n of sizes; track n) { <option [ngValue]="n">{{ n }}</option> }
+      </select>
+    </label>
+    @if (err('pageSize'); as m) { <span id="err-pageSize" class="error">{{ m }}</span> }
+    <div class="pager-nav">
+      <button type="button" class="btn btn-ghost" (click)="prev()" [disabled]="loading() || pageIndex() === 0">← Previous</button>
+      <span class="page-no">Page {{ pageIndex() + 1 }}</span>
+      <button type="button" class="btn btn-ghost" (click)="next()" [disabled]="loading() || !hasMore()">Next →</button>
+    </div>
+  </footer>
+</section>

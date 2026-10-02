@@ -17,6 +17,10 @@ body { font-family: system-ui, sans-serif; margin: 1rem auto; max-width: 70rem; 
   --surface-hover: oklch(97.8% .012 190);
   --line: oklch(91.5% .01 75);
   --line-strong: oklch(85% .014 70);
+  /* [NEW] Review F5: input/select/ghost-button borders are the only cue that marks a control's boundary, so they need
+     >= 3:1 non-text contrast (WCAG 1.4.11). --line-strong measured 1.57:1 against --surface; this is ~3.6:1
+     (3.4:1 on --surface-2). Decorative card separators keep the lighter --line tokens. */
+  --control-border: oklch(62% .014 70);
   --ink: oklch(24% .02 55);
   --ink-2: oklch(42% .018 60);
   --ink-3: oklch(55% .015 60);
@@ -67,7 +71,9 @@ h1 { margin: 0; font-size: 2rem; line-height: 1.15; font-weight: 700; letter-spa
 input:not([type='checkbox']), select {
   width: 100%; height: 2.5rem; padding: 0 .75rem;
   font: inherit; font-size: .9375rem; color: var(--ink);
-  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px;
+  /* [OLD] Replaced (review F5): background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; */
+  /* [NEW] Control border meets 3:1 so fields are identifiable for low-vision users. */
+  background: var(--surface); border: 1px solid var(--control-border); border-radius: 8px;
   transition: border-color .15s ease-out, box-shadow .15s ease-out;
 }
 input::placeholder { color: var(--ink-3); }
@@ -82,7 +88,9 @@ input:not([type='checkbox']):focus, select:focus { outline: none; border-color: 
 }
 .btn-primary { background: var(--accent); color: oklch(99% 0 0); border: 1px solid var(--accent); min-width: 7rem; }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
-.btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); }
+/* [OLD] Replaced (review F5): .btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); } */
+/* [NEW] Same 3:1 control border as inputs. */
+.btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--control-border); }
 .btn-ghost:hover:not(:disabled) { border-color: var(--ink-3); background: var(--surface-2); }
 .btn:disabled { cursor: not-allowed; opacity: .5; }
 

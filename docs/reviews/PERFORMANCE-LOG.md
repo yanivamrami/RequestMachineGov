@@ -49,3 +49,23 @@ A record of every performance review, its findings, and how each finding was res
 |----|-----|-----------|---------|--------|--------------|
 | F-001 | Sev 3 | Confirmed | Google Fonts stylesheet is render-blocking and needs 2 extra connections | Open, user decision | Self-host the woff2 with `@font-face` (also resolves security F-001) |
 | F-002 | Sev 3 | Likely | `ariaSort()` ×3 per header and `label()` per row in the template | Accepted | Zoneless + ≤ 100 rows, trivial functions; `@let` / pure pipe if the page grows |
+
+## Run 4 — Independent code review of PRs 1–3 by GPT-6 Astra (2026-10-02)
+**Scope:** PRs #1–#3 (combined code). **Reviewer:** GPT-6 Astra (a different AI model). **Report:** [code-review-pr1-pr2-pr3-20261002.md](code-review-pr1-pr2-pr3-20261002.md). Security items are in SECURITY-LOG Run 4. **Fixed in:** PR #6.
+
+| ID | Sev | Finding | Status | Fix / reason |
+|----|-----|---------|--------|--------------|
+| F3 | P2 | Sorting by `(Status, Id)` / `(RequestType, Id)` has no matching index, so admin pages are a scan + sort on a real DB | Accepted (same as Run 2 F-001) | Regular users are narrowed by permission indexes first. Add `(Status, Id)` / `(RequestType, Id)` if admin usage shows it. **README fixed:** it claimed "every page costs the same at any depth" without qualification; now it says that holds only where an index matches the sort |
+| F5 | P2 (accessibility) | Input borders 1.57:1 against the surface; WCAG 1.4.11 needs 3:1 | Fixed | New `--control-border: oklch(62% .014 70)` for inputs/selects/ghost buttons: 3.6:1 (3.4:1 on `--surface-2`), computed via OKLCH → sRGB luminance |
+| F6 | P2 (layout) | Pager clipped at 320px (298px row in a 288px card) | Fixed | `.pager-nav` wraps; tighter spacing below 30rem. Verified at 320px: nav 31–289px inside card 16–304px |
+| Note | Low | Component CSS over its 4 kB warning budget | Accepted | Now 4.64 kB after the F5/F6 rules. A warning, not a runtime cost |
+| Note | — | Scalability is a design intention on EF InMemory, not a measured result; `LIKE '%term%'` can scan for admins | Accepted (known, Run 1 F-002 / Run 2 F-004) | README "unfinished" #1: Postgres + `EXPLAIN ANALYZE` + `pg_trgm` |
+
+## Run 5 — Phase 6 delivery: review fixes (2026-10-02)
+**Scope:** PR #6 code diff. **Skill:** `performance-reviewer` criteria; small diff, read in full. **Report:** this entry.
+
+**Findings:** none new.
+- The `MaxValue` check removes a predicate; it never adds one.
+- The identity clear makes no extra HTTP calls, because `switchMap` still cancels the previous request.
+- `UseStatusCodePages` only acts on empty error responses.
+- CSS budget: see Run 4 note.

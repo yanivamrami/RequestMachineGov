@@ -114,7 +114,11 @@ th[aria-sort='ascending'] .arrow, th[aria-sort='descending'] .arrow { color: var
 }
 .page-size { display: inline-flex; align-items: center; gap: .625rem; font-weight: 500; }
 .page-size select { width: auto; height: 2.25rem; }
-.pager-nav { display: flex; align-items: center; gap: .75rem; }
+/* [OLD] Replaced (review F6): .pager-nav { display: flex; align-items: center; gap: .75rem; }
+   A non-wrapping row measured 298px inside a 288px card at 320px width, and .results clips overflow, so the
+   Previous/Next buttons were cut off. */
+/* [NEW] Allow the nav group to wrap and centre itself, so it never exceeds the card at narrow widths. */
+.pager-nav { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem .75rem; }
 .page-no { font-size: .875rem; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 4.5rem; text-align: center; }
 
 @media (max-width: 60rem) {
@@ -126,4 +130,8 @@ th[aria-sort='ascending'] .arrow, th[aria-sort='descending'] .arrow { color: var
   .filters { grid-template-columns: 1fr; padding: 1rem; }
   .actions .btn { flex: 1; }
   .pager { justify-content: center; }
+  /* [NEW] Review F6: tighter pager spacing on phones (page label min-width and button padding were the overflow). */
+  .pager { padding: .75rem .5rem; }
+  .page-no { min-width: 3.5rem; }
+  .pager-nav .btn { padding: 0 .75rem; }
 }

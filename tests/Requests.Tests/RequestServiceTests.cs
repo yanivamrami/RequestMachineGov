@@ -130,6 +130,21 @@ public class RequestServiceTests
         Assert.Equal([1, 2], page.Items.Select(x => x.Id).Order());
     }
 
+    // [NEW] Review F2 regression: the largest valid end date used to overflow (AddDays(1)) and return a 500.
+    // It must behave as "no upper bound", while an ordinary end date stays inclusive.
+    [Fact]
+    public async Task CreatedTo_MaxDate_ReturnsResultsInsteadOfOverflowing()
+    {
+        var jan = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var service = CreateService(Create(1, 1, null, jan), Create(2, 1, null, jan.AddDays(5)));
+
+        var max = await service.SearchAsync(new RequestSearchQuery { CreatedTo = DateOnly.MaxValue }, 1, true);
+        var ordinary = await service.SearchAsync(new RequestSearchQuery { CreatedTo = new DateOnly(2026, 1, 1) }, 1, true);
+
+        Assert.Equal([1, 2], max.Items.Select(x => x.Id).Order());
+        Assert.Equal([1], ordinary.Items.Select(x => x.Id));
+    }
+
     private static IEnumerable<Request> Expected(List<Request> rows, RequestSortBy sortBy, SortDirection sortDir)
     {
         Func<Request, object> key = sortBy switch

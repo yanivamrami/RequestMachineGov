@@ -55,3 +55,26 @@ A record of every security review, its findings, and how each finding was resolv
 
 **Skill findings at or above the bar:** none. Checked: interpolation-only output, attribute bindings (`data-status` is a CSS hook only), no new HTTP, storage or redirects.
 **Carried forward:** B-S2 (accepted).
+
+## Run 4 — Independent code review of PRs 1–3 by GPT-6 Astra (2026-10-02)
+**Scope:** PRs #1–#3 at heads `25315db`, `39edea4`, `5782bb0` (combined `src`, `frontend`, `tests`). **Reviewer:** GPT-6 Astra, a different AI model from the one that wrote the code; source review + dependency audit + API/browser checks. **Report:** [code-review-pr1-pr2-pr3-20261002.md](code-review-pr1-pr2-pr3-20261002.md). **Fixed in:** PR #6 (`feat/phase-6-review-fixes`).
+
+| ID | Severity | Finding | Status | Fix |
+|----|----------|---------|--------|-----|
+| F1 | P2 (advisory: critical) | `piscina@5.2.0` (GHSA-67c8-pqhq-4rmx) locked in through `@angular/build`; build-time only, no exploit path in the shipped app | Fixed | Latest `@angular/build` 21.2.24 still pins 5.2.0, so updating Angular doesn't help. Added `"overrides": { "piscina": "5.3.2" }`; `npm audit` → 0; build + tests pass |
+| F2 | P2 | `createdTo=9999-12-31` passes validation, then `AddDays(1)` overflows → 500 | Fixed | `DateOnly.MaxValue` means "no upper bound", so the filter is skipped. Regression test `CreatedTo_MaxDate_ReturnsResultsInsteadOfOverflowing` fails without the fix; HTTP check in Production → 200 |
+| F4 | P2 | Changing identity left the previous identity's rows readable until the new response arrived | Fixed | The identity effect clears rows, hasMore, cursor and errors before restarting. Spec test fails without the fix |
+| Note | Low | Unknown route returned 404 with an empty body, contradicting the "every error is ProblemDetails" comment | Fixed | `app.UseStatusCodePages()`; verified 404 → ProblemDetails with `traceId` |
+| B-S2 | High (production) | Caller chooses `X-User-Id` / `X-Is-Admin` (re-verified: user 999999 + admin header sees everything) | Accepted (exercise constraint) | Unchanged; real JWT auth is the README's first "unfinished" item |
+
+**Lesson:** our own runs 1–3 didn't include a full `npm audit` (dev dependencies too) or boundary-value inputs. Both are now part of verification.
+
+## Run 5 — Phase 6 delivery: review fixes (2026-10-02)
+**Scope:** `git diff feat/phase-5-cloud..feat/phase-6-review-fixes` (PR #6), code files only. **Skill:** `security-review` criteria; the diff is ~60 lines of code, read in full. **Report:** this entry.
+
+**Findings at or above the bar:** none. Checked:
+- `UseStatusCodePages` bodies carry only the standard title/status/traceId, no internals.
+- The `MaxValue` branch only removes a filter that excludes nothing; the permission predicate is untouched.
+- The identity clear reduces exposure and adds no new state.
+- The `piscina` override stays within the same major version and is build-time only.
+**Carried forward:** B-S2 (accepted).

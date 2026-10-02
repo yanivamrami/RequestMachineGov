@@ -137,8 +137,39 @@ Parts B and C each have their own decision section: the transactional outbox, EC
 
 ## How the work was delivered
 
-- **Stacked PRs:** baseline on `main` → PR 1 Phase 1 fixes → PR 2 search backend + Angular client → PR 3 UI redesign → PR 4 Part B → PR 5 Part C → PR 6 fixes from an independent code review + README/AI-usage → PR 7 comment cleanup + plans moved to `docs/plans/`.
-- **Change annotations during development:** while the PRs were open, every change kept the old code commented out with why it was wrong (`// [OLD]`) next to the new code and why it is better (`// [NEW]`), so each change could be reviewed and explained. Once all PRs were merged, a final cleanup PR (#7) replaced them with concise what/why comments. The before/after of every change is still in the merged PRs 1–6.
+The work was delivered as **7 pull requests**, each building on the previous one and merged into `main` in order:
+
+| PR | Contains |
+|---|---|
+| [#1](https://github.com/yanivamrami/RequestMachineGov/pull/1) | Phase 1: fixes to the code as received (DB-side permission filter, 401 for missing identity, indexes, error handling) |
+| [#2](https://github.com/yanivamrami/RequestMachineGov/pull/2) | Phase 2: search backend (filters, sorting, keyset paging, validation) + Angular client |
+| [#3](https://github.com/yanivamrami/RequestMachineGov/pull/3) | Phase 3: UI redesign |
+| [#4](https://github.com/yanivamrami/RequestMachineGov/pull/4) | Part B: microservices architecture + diagrams |
+| [#5](https://github.com/yanivamrami/RequestMachineGov/pull/5) | Part C: AWS cloud deployment + diagram |
+| [#6](https://github.com/yanivamrami/RequestMachineGov/pull/6) | Fixes from an independent code review + README and AI-usage |
+| [#7](https://github.com/yanivamrami/RequestMachineGov/pull/7) | Comment cleanup + plans moved to `docs/plans/` |
+
+### Reading the PRs: `[OLD]` / `[NEW]` comments
+
+**PRs 1–6 contain `[OLD]` and `[NEW]` comments on purpose.** They make each change understandable to a reviewer who doesn't know the code, without switching between the diff and the original file:
+
+```csharp
+// [OLD] Replaced: <why the old code was wrong or insufficient>
+// <the old code, kept as a comment>
+// [NEW] <what the new code does and how it fixes the problem>
+<the new code>
+```
+
+- `[OLD]` keeps the replaced code in place, with the reason it was wrong (for example: *"materializes the whole table before any filtering happens"*).
+- `[NEW]` explains what the new code does and why it is better.
+- A brand-new file starts with a single `[NEW]` line saying why the file exists.
+
+To follow a change, open the PR's **Files changed** tab and read the `[OLD]` → `[NEW]` pairs from top to bottom.
+
+**This is a review aid for this exercise, not a development practice.** In a normal workflow, the version history and the PR diff already hold the old code, and commented-out code in `main` is noise. So PR #7 removed every annotation after the review: the final `main` branch has only short what-and-why comments. A script confirmed that PR #7 changed comments only (the code is identical with comments stripped). The full before/after of every change remains in the merged PRs 1–6.
+
+### Process
+
 - An **independent code review** of PRs 1–3 by a different AI model ([report](docs/reviews/code-review-pr1-pr2-pr3-20261002.md)) found 6 issues our own reviews had missed. All are fixed or explicitly accepted in PR 6.
 - After each feature I ran a performance and a security review. Findings and their status (Fixed/Deferred/Accepted/Open) are in [docs/reviews/](docs/reviews/).
 - [SESSION-LOG.md](SESSION-LOG.md) records every prompt and response of the AI-assisted session.

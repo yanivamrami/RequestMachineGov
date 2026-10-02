@@ -335,3 +335,12 @@ Next: the standalone microservices architecture HTML, added to PR 4.
 - Moved PLAN.md and PLAN-FRONTEND.md to `docs/plans/` with `git mv`; no other planning docs found.
 - Docs: README (plans row, PR 7 in the stack, the annotation-history note, removed the "cleanup" unfinished item), AI-usage (annotations retired, cleanup verification), CLAUDE.md (comment rule replaces the annotation rule), and the memory updated to match.
 - Review logs: Run 6 says no review is needed because the code is unchanged.
+
+## 33. README: explain the [OLD]/[NEW] comments in the PRs
+**User:** Make sure the README explains that the PRs contain [OLD] and [NEW] comments, to help a developer who doesn't know the code understand the changes, and that this isn't used in a normal dev methodology (as the final main shows).
+
+**Assistant:** Rewrote README "How the work was delivered" on the PR 7 branch:
+- a table of PRs #1–#7 with links and what each contains;
+- a "Reading the PRs" subsection with the [OLD]/[NEW] format, what each tag means, and how to read a PR (Files changed, top to bottom);
+- an explicit note that this is a review aid for the exercise, not a dev practice: git history and the PR diff hold the old code, so PR #7 removed the annotations, verified as comment-only, and the before/after remains in PRs 1–6.
+The existing process bullets moved under "Process". Pushed to PR 7.

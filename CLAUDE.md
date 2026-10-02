@@ -42,4 +42,12 @@ Known starting-point weaknesses (relevant to the task):
 
 - Append a summary of every user input and assistant output to `SESSION-LOG.md` (newest at bottom) for later review.
 - On every delivery (each major feature, and at project completion), run the `performance-reviewer:performance-reviewer` and `security-review` skills.
+- **Change annotation (required for every code change, so each change can be explained in the interview):** keep the old code commented out above the new code:
+  ```csharp
+  // [OLD] Replaced: <why the old code is wrong / insufficient>
+  // <old code, each line prefixed with //>
+  // [NEW] <what this does and how it fixes the bug / meets the requirement>
+  <new code>
+  ```
+  New files get a single `// [NEW] <why this file exists>` header. Deleted code stays as `// [OLD]` blocks. Use `//` line comments only (never `/* */`). The tags are greppable (`grep -rn "\[OLD\]"`) for cleanup before final submission.
 - Code style: `ponytail` at **full** — simplest code that works, but still performant (query-side filtering, paging, indexes). Never simplify away validation or server-side authorization.

@@ -65,3 +65,13 @@ Added a short `.gitignore` (bin/obj, node_modules/dist, .DS_Store, .claude/setti
 **User:** Approved the baseline commit, keeping the logs in the repo. Do not start implementation yet.
 
 **Assistant:** Committed the baseline on `main` (original code + `.gitignore`, `CLAUDE.md`, `PLAN.md`, `SESSION-LOG.md`). No remote yet, no branches created, no code changes.
+
+## 9. Change-annotation rule
+**User:** Every code change must keep the old code commented out with an explanation of why it is replaced, followed by the new code with a short explanation of why it is there and how it fixes the bug or meets the requirement.
+
+**Assistant:** Defined the format `// [OLD] Replaced: <why>` + commented old code, then `// [NEW] <why better>` + new code. New files get a `[NEW]` header; deleted code stays as an `[OLD]` block; `//` comments only; the tags are greppable for cleanup later. Added it to `CLAUDE.md` working rules and to memory. No code changes.
+
+## 10. Error handling by environment
+**User:** For the global error handling task (1.6): production must never return sensitive data or exception details; development should show exceptions to help debugging. This must be noted in the code as well.
+
+**Assistant:** Updated PLAN.md 1.6: `AddProblemDetails()` everywhere; `UseExceptionHandler()` only outside Development, which gives a generic 500 ProblemDetails with only a traceId and logs the exception on the server. Development uses the built-in Developer Exception Page (full exception + stack trace as ProblemDetails JSON). Fails closed: if the environment is unset, it defaults to Production. 400 validation errors list only the caller's invalid fields. The behavior will be documented in a `[NEW]` comment in Program.cs. No code changed yet.

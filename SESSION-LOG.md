@@ -221,3 +221,35 @@ Wrote `docs/architecture/cloud-aws.md`:
 - Next steps: OpenSearch, Aurora Limitless, analytics lake.
 
 Wrote `docs/architecture/cloud-aws.html`: an SVG diagram (region → VPC → public/app/data subnets, ECS cluster, regional managed services), with flow-highlight buttons (user request, event → notification, data access, observability), hover tooltips, and summary cards per component. Checked in the browser at 1440px; fixed two overlapping group labels.
+
+## 24. PR 5
+**User:** Commit this as PR 5.
+
+**Assistant:** Committed cloud-aws.md/html + session log on `feat/phase-5-cloud` and opened PR 5 against `feat/phase-4-architecture`.
+
+## 25. Is AWS API Gateway used?
+**User:** Are we using AWS API Gateway in this architecture?
+
+**Assistant:** No. The Part B "API Gateway" is a role:
+- ALB does routing and TLS.
+- CloudFront + WAF + Shield do rate limiting and protection.
+- Cognito issues the JWT, which each service validates.
+- Authorization happens inside each service.
+
+Skipped API Gateway because of per-request cost at billions of calls/month and because none of its features are needed. Would add it for a public third-party API (keys, quotas) or Lambda backends.
+
+## 26. Wouldn't API Gateway perform better?
+**User:** Doesn't a dedicated AWS API Gateway perform better than the current architecture?
+
+**Assistant:** No, it would be slightly slower:
+1. It's an extra hop (API Gateway → VPC Link → LB → service), in front of the ALB rather than replacing it.
+2. Latency lives in the services and DB, which API Gateway doesn't touch.
+3. Edge-optimized endpoints are just CloudFront, which we already have.
+4. It has a default ~10k req/s regional quota.
+
+Its response cache doesn't fit permission-filtered results: a per-user key gives a low hit rate, and a wrong key leaks data.
+
+## 27. Document the API Gateway decision
+**User:** Add it to cloud-aws.md and push to PR 5.
+
+**Assistant:** Added section 4 "Decision: no AWS API Gateway (ALB + WAF instead)": the role mapping table, cost reasoning, five performance points, and when to add API Gateway. Linked it from the Compute section; renumbered "Left out on purpose" to section 5. Pushed to PR 5.

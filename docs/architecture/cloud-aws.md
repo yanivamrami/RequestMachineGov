@@ -28,7 +28,7 @@ What that means for this system:
 
 ### Compute: ECS on Fargate
 - **One ECS service per microservice**, with tasks spread across **3 AZs**, inside private subnets. Only the ALB is public.
-- **ALB** with path-based routing (`/api/requests` → Requests, and so on). It plays the "API Gateway" role from Part B.
+- **ALB** with path-based routing (`/api/requests` → Requests, and so on). It plays the "API Gateway" role from Part B. There is no AWS API Gateway product in this design; see [section 4](#4-decision-no-aws-api-gateway-alb--waf-instead).
 - **ECS Service Connect** carries the internal sync REST calls (Requests → Customers, Notifications → Customers), with service discovery and retries/timeouts in the client (Part B resilience handler).
 - The **outbox relay** runs as a hosted background service inside the Requests task. Only one relay should publish at a time, so it takes a Postgres advisory lock. Several relays would still be safe, since consumers dedupe, but they'd waste work.
 - **Workers** (Notifications, Reporting consumers) are separate ECS services, so they scale independently of the APIs.
@@ -105,7 +105,33 @@ GitHub Actions builds the image → **ECR** (scan on push) → ECS deploy with *
 | Lambda | Fits bursty consumers, but adds .NET cold starts, per-invocation DB connections (RDS Proxy mandatory) and a 15-min limit. Consumers could move to Lambda + SQS triggers later with no design change. |
 | EC2 / ECS on EC2 | Cheaper at large steady load (Graviton + Savings Plans). It's a cost optimization to apply once the load profile is known. Fargate Spot is a cheaper middle step for workers. |
 
-## 4. Left out on purpose
+## 4. Decision: no AWS API Gateway (ALB + WAF instead)
+
+The Part B "API Gateway" is a **role**. On AWS, three pieces cover it:
+
+| Gateway job | Who does it |
+|---|---|
+| TLS, routing `/api/requests` → Requests, etc. | **ALB** (path-based routing) |
+| Rate limiting, OWASP rules, bot/DDoS protection | **CloudFront + WAF + Shield**, at the edge, before traffic reaches the region |
+| Authentication | **Cognito** issues the JWT; each service validates it (`JwtBearer` + cached JWKS) |
+| Authorization (owner/assignee/admin) | Inside each service, as in Part A |
+
+**Why not AWS API Gateway:**
+- **Cost at this volume.** API Gateway bills per request (HTTP API about $1/M, REST API about $3.50/M). At thousands of calls/s that's billions of requests and thousands of dollars a month. The ALB is billed on capacity units and costs much less for the same traffic.
+- **No feature we'd use.** Its strengths are API keys, usage plans, request transformation and Lambda integration. Our client is our own SPA, the backends are containers, and WAF already does rate limiting.
+
+**Performance: API Gateway would not make this faster.**
+1. **It adds a hop.** Our services sit in private subnets, so API Gateway reaches them through a VPC Link, which still targets a load balancer: CloudFront → API Gateway → VPC Link → LB → service. It goes *in front of* the ALB, not instead of it, and typically adds a few to tens of milliseconds per call.
+2. **The slow part is behind the gateway.** Latency comes from the services and the DB. That's handled by indexes, keyset paging, read replicas, RDS Proxy and Redis, and API Gateway changes none of it.
+3. **Its edge feature is already covered.** An "edge-optimized" API Gateway endpoint is CloudFront in front, which we already have.
+4. **It caps throughput.** The default account limit is about 10k req/s per region. It can be raised, but it's one more ceiling to manage; the ALB has no request quota.
+5. **Its response cache (REST APIs only) doesn't fit.** Search results depend on who is asking (owner/assignee/admin), so the cache key would have to include the user, and the hit rate would be low. Getting that key wrong would serve one user's requests to another: a security bug, not a speedup. Where caching is safe, it's already in place: CloudFront for static files, Redis for lookups shared across users.
+
+Performance comes from the data layer and caching; the gateway choice is about cost and control.
+
+**When to add API Gateway:** opening a **public API to third parties** (API keys, per-client quotas, usage plans, request validation), as a separate entry point in front of the same ALB. Or when moving endpoints or consumers to **Lambda**.
+
+## 5. Left out on purpose
 - IaC (Terraform/CDK): excluded by the spec.
 - Multi-region active-active, the OpenSearch search projection, Aurora Limitless: described above as the next steps, with the trigger for each.
 - Analytics lake (Firehose → S3 → Athena) for BI beyond the Reporting service: add it when BI needs ad-hoc queries over history.

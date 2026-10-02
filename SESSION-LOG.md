@@ -166,3 +166,38 @@ Task T2 → Completed. Plans not committed yet (uncommitted on the phase-1 branc
 - Performance (Angular checklist): F-001 Sev 3, the Google Fonts stylesheet is render-blocking. F-002 Sev 3, template helper calls (accepted).
 - Security: nothing at or above the bar; one Low item, F-001: Google Fonts sends the visitor's IP to Google (privacy/GDPR, no SRI possible).
 Both Google Fonts items have the same fix, self-hosting the font, and are logged as "Open, user decision" since the font was the user's design choice. Reports and log entries added under docs/reviews/; committed and pushed to PR 3.
+
+## 21. Part B: microservices architecture
+**User:** Review the spec and focus on the microservices architecture. Proposed an MQ for the major services, with an idempotency check so each message is sent and consumed once, as the way to handle a service being down. Asked for the service layout, the APIs between services, and the messaging queue with retry and resilience.
+
+**Assistant:** Wrote `docs/architecture/microservices.md`. Kept the MQ + idempotent-consumer idea and added two corrections:
+1. A queue alone loses events on the producer side: a commit followed by a crash or a broker outage means the event never gets published (dual write). Fixed with a transactional outbox.
+2. True exactly-once doesn't exist; the design is at-least-once delivery plus an inbox dedupe on `messageId`.
+
+The doc covers:
+- Service layout with a mermaid diagram, one DB per service. Sync REST only for validations and lookups; events for reactions. JWT at the gateway, authorization inside each service.
+- An API/events table per service.
+- A sequence diagram for status change → notification.
+- The event envelope, including `version` for out-of-order delivery.
+- Idempotency at each hop. The email send has a remaining duplicate gap, which is accepted.
+- Retry policy: immediate retries → delayed redelivery → DLQ; poison messages go straight to the DLQ. Polly standard handler for sync calls.
+- A failure-scenario table, plus the tech choice: RabbitMQ / Service Bus with MassTransit outbox/inbox, not Kafka.
+- The README "one decision": outbox vs. 4 alternatives.
+
+No code changed, so no performance/security review was run.
+
+## 22. Animated data-flow page
+**User:** Create an HTML page that shows the data flow between the microservices in both success and failure states, with animation showing the retry mechanism at work.
+
+**Assistant:** Wrote `docs/architecture/data-flow.html`: one self-contained file (vanilla JS + SVG, no dependencies), with light and dark themes and a speed control. It has 7 animated scenarios:
+1. Happy path
+2. Notifications down: the queue buffers, then drains
+3. Broker down: the outbox piles up, the relay retries with backoff
+4. Email failing: 3 immediate tries → delayed redelivery 1m/5m → success
+5. Retries exhausted → DLQ + alert → operator replay
+6. Duplicate publish → dedupe skip
+7. Customers down → backoff → circuit breaker open, fail fast, half-open, closed
+
+A live retry-ladder strip and a step log track progress. All 7 scenarios were run in the browser pane and end clean (outbox/queues/DLQ = 0, one email each).
+
+Also fixed a bug in my own design doc: a plain inbox row committed before the email send would make a redelivery after a failed send look like a duplicate, so the email would be lost. The Notification row (Pending/Sent) is now the dedupe record for Notifications. The inbox stays for DB-only consumers like Reporting.

@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microservices Data Flow</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --panel: #ffffff; --ink: #1f2328; --muted: #6a6f76; --line: #d4d2cc;
+    --node: #ffffff; --node-stroke: #b9b6ae;
+    --ok: #1f8a4c; --fail: #c8372d; --retry: #c27c0e; --sync: #2f6fd6; --event: #7a4fd0; --skip: #6a6f76;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16181c; --panel: #1f2228; --ink: #e8e6e1; --muted: #9a9ea6; --line: #3a3e46;
+      --node: #262a31; --node-stroke: #4a4f59;
+      --ok: #4cc27f; --fail: #ef6a5f; --retry: #e6a63a; --sync: #6d9cf0; --event: #a888f0; --skip: #9a9ea6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16181c; --panel: #1f2228; --ink: #e8e6e1; --muted: #9a9ea6; --line: #3a3e46;
+    --node: #262a31; --node-stroke: #4a4f59;
+    --ok: #4cc27f; --fail: #ef6a5f; --retry: #e6a63a; --sync: #6d9cf0; --event: #a888f0; --skip: #9a9ea6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 16px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  .controls button { font: inherit; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  .controls button:hover { border-color: var(--node-stroke); }
+  .controls button[aria-pressed="true"] { border-color: var(--ink); font-weight: 600; }
+  .controls button.fail { box-shadow: inset 3px 0 0 var(--fail); }
+  .controls button.okb { box-shadow: inset 3px 0 0 var(--ok); }
+  .controls label { margin-left: auto; color: var(--muted); }
+  .controls select { font: inherit; padding: 5px; border-radius: 6px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+  .desc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; }
+  .desc b { display: block; margin-bottom: 2px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
+  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+  .stage, .log { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .stage { padding: 8px; overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 760px; height: auto; }
+  .edge { stroke: var(--line); stroke-width: 2; }
+  .node rect { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; transition: stroke .2s, fill .2s; }
+  .node .title { font-weight: 600; font-size: 14px; fill: var(--ink); text-anchor: middle; }
+  .node .sub { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+  .node .badge { font-size: 11px; font-weight: 700; text-anchor: middle; fill: var(--fail); letter-spacing: .05em; }
+  .node.down rect { stroke: var(--fail); stroke-width: 3; stroke-dasharray: 6 4; }
+  .node.down .title { fill: var(--fail); }
+  .node.hl-ok rect { stroke: var(--ok); stroke-width: 3; }
+  .node.hl-fail rect { stroke: var(--fail); stroke-width: 3; }
+  .node.hl-retry rect { stroke: var(--retry); stroke-width: 3; }
+  .node.hl-skip rect { stroke: var(--skip); stroke-width: 3; }
+  .token circle { stroke: var(--panel); stroke-width: 2; }
+  .token text { font-size: 11px; font-weight: 600; text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
+  .token.event circle { fill: var(--event); }
+  .token.sync circle { fill: var(--sync); }
+  .token.ok circle { fill: var(--ok); }
+  .token.fail circle { fill: var(--fail); }
+  .token.retry circle { fill: var(--retry); }
+  .token .x { fill: var(--fail); font-size: 18px; stroke-width: 3px; }
+  .cd text { font-size: 11px; font-weight: 600; fill: var(--retry); text-anchor: middle; }
+  .cd .track { fill: var(--line); }
+  .cd .bar { fill: var(--retry); }
+  .ladder { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 6px 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+  .ladder span.lbl { color: var(--muted); margin-right: 4px; }
+  .ladder .st { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; transition: all .2s; }
+  .ladder .st.active { border-color: var(--retry); color: var(--retry); font-weight: 700; }
+  .ladder .st.failed { border-color: var(--fail); color: var(--fail); text-decoration: line-through; }
+  .ladder .st.done { border-color: var(--ok); color: var(--ok); font-weight: 700; }
+  .ladder .arrow { color: var(--muted); }
+  .log { padding: 10px 12px; max-height: 640px; overflow-y: auto; }
+  .log h2 { font-size: 14px; margin: 0 0 6px; }
+  .log ol { margin: 0; padding-left: 22px; }
+  .log li { margin: 3px 0; }
+  .log li.ok { color: var(--ok); }
+  .log li.fail { color: var(--fail); }
+  .log li.retry { color: var(--retry); }
+  .log li.skip { color: var(--skip); font-style: italic; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Requests platform: event flow, failures and retries</h1>
+  <p class="lede">Pick a scenario to animate it. The timings are compressed: "1m" in the retry ladder plays in about a second.</p>
+
+  <div class="controls" id="controls"></div>
+  <div class="desc" id="desc"></div>
+
+  <div class="grid">
+    <div class="stage">
+      <svg id="svg" viewBox="0 0 1200 520" role="img" aria-label="Animated diagram of messages flowing between microservices"></svg>
+      <div class="ladder" id="ladder"></div>
+    </div>
+    <aside class="log"><h2>Steps</h2><ol id="log"></ol></aside>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--sync)"></i>sync REST call</span>
+    <span><i style="background:var(--event)"></i>event / message</span>
+    <span><i style="background:var(--ok)"></i>success / ack</span>
+    <span><i style="background:var(--retry)"></i>retry / redelivery</span>
+    <span><i style="background:var(--fail)"></i>failed attempt</span>
+    <span>Dashed red border = service down</span>
+  </div>
+</div>
+
+<script>
+// [NEW] Animated walkthrough of docs/architecture/microservices.md: the outbox, broker, idempotent consumers and the retry ladder.
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('svg');
+const el = (tag, attrs = {}, parent = svg) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+};
+
+const H = 58;
+const nodes = {
+  client:        { x: 70,   y: 180, t: 'Client',        s: 'Angular UI' },
+  gateway:       { x: 225,  y: 180, t: 'API Gateway',   s: 'JWT, rate limit' },
+  customers:     { x: 400,  y: 60,  t: 'Customers',     s: 'REST' },
+  requests:      { x: 400,  y: 180, t: 'Requests',      s: 'circuit: CLOSED' },
+  rdb:           { x: 400,  y: 340, t: 'Requests DB',   s: 'outbox: 0 pending', w: 150 },
+  relay:         { x: 580,  y: 340, t: 'Outbox relay',  s: 'polls every 1s' },
+  broker:        { x: 760,  y: 180, t: 'Broker',        s: 'notif.q 0 · report.q 0', w: 170 },
+  dlq:           { x: 760,  y: 455, t: 'Dead-letter Q', s: '0 messages' },
+  ndb:           { x: 960,  y: 60,  t: 'Notif. DB',     s: 'Notification log' },
+  notifications: { x: 960,  y: 180, t: 'Notifications', s: 'consumer' },
+  email:         { x: 1125, y: 180, t: 'Email / SMS',   s: 'external provider' },
+  reporting:     { x: 960,  y: 340, t: 'Reporting',     s: 'read model + inbox' },
+};
+const edges = [
+  ['client', 'gateway'], ['gateway', 'requests'], ['requests', 'customers'], ['requests', 'rdb'],
+  ['rdb', 'relay'], ['relay', 'broker'], ['broker', 'notifications'], ['broker', 'reporting'],
+  ['broker', 'dlq'], ['notifications', 'ndb'], ['notifications', 'email'],
+];
+
+const edgeLayer = el('g'), nodeLayer = el('g'), fxLayer = el('g'), tokenLayer = el('g');
+for (const [a, b] of edges) {
+  el('line', { x1: nodes[a].x, y1: nodes[a].y, x2: nodes[b].x, y2: nodes[b].y, class: 'edge' }, edgeLayer);
+}
+for (const [id, n] of Object.entries(nodes)) {
+  const w = n.w || 130;
+  n.g = el('g', { class: 'node' }, nodeLayer);
+  el('rect', { x: n.x - w / 2, y: n.y - H / 2, width: w, height: H, rx: 10 }, n.g);
+  el('text', { x: n.x, y: n.y - 4, class: 'title' }, n.g).textContent = n.t;
+  n.sub = el('text', { x: n.x, y: n.y + 14, class: 'sub' }, n.g);
+  n.badge = el('text', { x: n.x, y: n.y - H / 2 - 7, class: 'badge' }, n.g);
+}
+
+// ---- animation primitives (cancellable when another scenario starts) ----
+let speed = 1;
+let active = { dead: true };
+const CANCEL = Symbol('cancel');
+
+function frames(ms, fn) {
+  const run = active;
+  return new Promise((resolve, reject) => {
+    let t0;
+    const tick = now => {
+      if (run.dead) return reject(CANCEL);
+      t0 ??= now;
+      const t = Math.min(1, (now - t0) / (ms / speed));
+      fn(t);
+      t < 1 ? requestAnimationFrame(tick) : resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+const sleep = ms => frames(ms, () => {});
+const ease = t => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
+async function move(a, b, { label = '', kind = 'event', to = 1, back = false } = {}) {
+  const A = nodes[a], B = nodes[b];
+  const g = el('g', { class: 'token ' + kind }, tokenLayer);
+  el('circle', { r: 8 }, g);
+  el('text', { y: -14 }, g).textContent = label;
+  const at = p => g.setAttribute('transform', `translate(${A.x + (B.x - A.x) * p},${A.y + (B.y - A.y) * p})`);
+  try {
+    await frames(800, t => at(ease(t) * to));
+    if (back) {
+      el('text', { y: 6, x: 0, class: 'x' }, g).textContent = '✕';
+      await sleep(350);
+      await frames(500, t => at(to * (1 - ease(t))));
+    }
+  } finally {
+    g.remove();
+  }
+}
+const failAt = (a, b, label) => move(a, b, { label, kind: 'fail', to: 0.78, back: true });
+
+async function flash(id, kind, ms = 550) {
+  const cls = 'hl-' + kind;
+  nodes[id].g.classList.add(cls);
+  try { await sleep(ms); } finally { nodes[id].g.classList.remove(cls); }
+}
+
+async function countdown(id, label, ms) {
+  const n = nodes[id], w = 120, y = n.y + H / 2 + 8;
+  const g = el('g', { class: 'cd' }, fxLayer);
+  el('rect', { x: n.x - w / 2, y, width: w, height: 5, rx: 2.5, class: 'track' }, g);
+  const bar = el('rect', { x: n.x - w / 2, y, width: w, height: 5, rx: 2.5, class: 'bar' }, g);
+  el('text', { x: n.x, y: y + 18 }, g).textContent = label;
+  try { await frames(ms, t => bar.setAttribute('width', w * (1 - t))); } finally { g.remove(); }
+}
+
+function setDown(id, down) {
+  nodes[id].g.classList.toggle('down', down);
+  nodes[id].badge.textContent = down ? 'DOWN' : '';
+}
+
+// ---- state shown inside the nodes ----
+let st;
+function render() {
+  nodes.rdb.sub.textContent = `outbox: ${st.outbox} pending`;
+  nodes.broker.sub.textContent = `notif.q ${st.nq} · report.q ${st.rq}`;
+  nodes.dlq.sub.textContent = `${st.dlq} message${st.dlq === 1 ? '' : 's'}`;
+  nodes.requests.sub.textContent = `circuit: ${st.breaker}`;
+  nodes.ndb.sub.textContent = st.sent.size ? `${st.sent.size} Sent · ${st.pending.size} Pending` : 'Notification log';
+}
+
+const logEl = document.getElementById('log');
+function log(text, kind = '') {
+  const li = document.createElement('li');
+  li.textContent = text;
+  if (kind) li.className = kind;
+  logEl.appendChild(li);
+  logEl.parentElement.scrollTop = logEl.parentElement.scrollHeight;
+}
+
+// ---- retry ladder ----
+const STAGES = ['Try 1', 'Try 2', 'Try 3', 'Redeliver 1m', 'Redeliver 5m', 'Redeliver 30m', 'Redeliver 2h', 'DLQ'];
+const ladderEl = document.getElementById('ladder');
+function drawLadder() {
+  ladderEl.innerHTML = '<span class="lbl">Consumer retry ladder:</span>' +
+    STAGES.map((s, i) => `<span class="st" data-i="${i}">${s}</span>${i < STAGES.length - 1 ? '<span class="arrow">→</span>' : ''}`).join('');
+}
+function ladder(i, state) {
+  const e = ladderEl.querySelector(`[data-i="${i}"]`);
+  e.classList.remove('active', 'failed', 'done');
+  if (state) e.classList.add(state);
+}
+
+// ---- building blocks shared by the scenarios ----
+let seq = 0;
+const newMsg = () => 'msg-' + (0xa10 + ++seq).toString(16);
+
+async function clientCall({ method = 'PATCH /requests/42/status', validate = false } = {}) {
+  log(`Client sends ${method}`);
+  await move('client', 'gateway', { label: method, kind: 'sync' });
+  await move('gateway', 'requests', { kind: 'sync' });
+  if (validate) {
+    await move('requests', 'customers', { label: 'GET /customers/7', kind: 'sync' });
+    await move('customers', 'requests', { label: '200', kind: 'ok' });
+    log('Requests checked the customer exists (sync REST)', 'ok');
+  }
+  const id = newMsg();
+  await move('requests', 'rdb', { label: 'UPDATE + INSERT outbox', kind: 'event' });
+  st.outbox++; st.queue.push(id); render();
+  await flash('rdb', 'ok');
+  log(`One DB transaction committed the request change and outbox row ${id}`, 'ok');
+  await move('requests', 'gateway', { label: '200 OK', kind: 'ok' });
+  await move('gateway', 'client', { kind: 'ok' });
+  log('The client gets its answer. No other service has been involved yet.', 'ok');
+  return id;
+}
+
+async function relayPublish({ markPublished = true } = {}) {
+  const id = st.queue[0];
+  await move('rdb', 'relay', { label: id, kind: 'event' });
+  await move('relay', 'broker', { label: 'publish ' + id, kind: 'event' });
+  st.nq++; st.rq++; render();
+  await flash('broker', 'ok');
+  log(`Broker stored ${id} in both queues (notif.q, report.q) and acked`, 'ok');
+  if (markPublished) {
+    st.queue.shift(); st.outbox--; render();
+    log('Relay marked the outbox row as published');
+  }
+  return id;
+}
+
+async function deliverNotification(id, { emailFails = 0 } = {}) {
+  st.nq--; render();
+  await move('broker', 'notifications', { label: id, kind: 'event' });
+  await move('notifications', 'ndb', { label: 'lookup ' + id, kind: 'sync' });
+  if (st.sent.has(id)) {
+    await move('ndb', 'notifications', { label: 'already Sent', kind: 'ok' });
+    await flash('notifications', 'skip');
+    log(`${id} is already Sent, so it's a duplicate: ack and skip, no second email`, 'skip');
+    return true;
+  }
+  const isRetry = st.pending.has(id);
+  st.pending.add(id); render();
+  await move('ndb', 'notifications', { label: isRetry ? 'Pending → resend' : 'new → Pending', kind: 'ok' });
+  log(isRetry ? `${id} is Pending from an earlier failed try, so send again` : `Inserted Notification(${id}, Pending)`);
+  return sendEmail(id, emailFails);
+}
+
+async function sendEmail(id, fails) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt < fails) {
+      ladder(attempt, 'active');
+      await failAt('notifications', 'email', `send · try ${attempt + 1}`);
+      ladder(attempt, 'failed');
+      log(`Try ${attempt + 1} failed (provider error)`, 'fail');
+      if (attempt < 2) await sleep(200);
+      continue;
+    }
+    if (fails > 0) ladder(attempt, 'done');
+    await move('notifications', 'email', { label: 'send (key=' + id + ')', kind: 'event' });
+    await move('email', 'notifications', { label: '250 OK', kind: 'ok' });
+    st.pending.delete(id); st.sent.add(id); render();
+    await move('notifications', 'ndb', { label: 'mark Sent', kind: 'ok' });
+    await flash('notifications', 'ok');
+    log(`Email sent; ${id} marked Sent; message acked`, 'ok');
+    return true;
+  }
+  return false;
+}
+
+async function deliverReport(id, { duplicate = false } = {}) {
+  st.rq--; render();
+  await move('broker', 'reporting', { label: id, kind: 'event' });
+  if (duplicate) {
+    await flash('reporting', 'skip');
+    log(`Reporting: ${id} is already in the inbox (PK), so ack and skip`, 'skip');
+    return;
+  }
+  await flash('reporting', 'ok');
+  log(`Reporting: inbox(${id}) + read-model upsert in one transaction, then ack`, 'ok');
+}
+
+const deliverBoth = (id, opts) => Promise.all([deliverNotification(id, opts), deliverReport(id)]);
+
+// ---- scenarios ----
+const scenarios = [
+  {
+    key: 'happy', name: '1 · Happy path', cls: 'okb',
+    desc: 'Create a request → outbox → broker → fan-out to Notifications and Reporting. The user never waits for the notification.',
+    async run() {
+      const id = await clientCall({ method: 'POST /requests', validate: true });
+      await relayPublish();
+      await deliverBoth(id);
+      log('Done: every hop is durable and acknowledged.', 'ok');
+    },
+  },
+  {
+    key: 'notifDown', name: '2 · Notifications down', cls: 'fail',
+    desc: 'Notifications is offline. Users keep working; events wait in its durable queue and drain when it comes back. Nothing is lost.',
+    async run() {
+      setDown('notifications', true);
+      log('Notifications service goes DOWN', 'fail');
+      const ids = [];
+      for (let i = 0; i < 3; i++) {
+        const id = await clientCall();
+        await relayPublish();
+        await deliverReport(id);
+        log(`${id} waits in notif.q (depth ${st.nq})`, 'retry');
+        ids.push(id);
+      }
+      await countdown('notifications', 'restarting…', 1500);
+      setDown('notifications', false);
+      log('Notifications is back UP and drains the queue in order', 'ok');
+      for (const id of ids) await deliverNotification(id);
+      log('Backlog drained: 3 of 3 notifications sent, 0 lost.', 'ok');
+    },
+  },
+  {
+    key: 'brokerDown', name: '3 · Broker down', cls: 'fail',
+    desc: 'The broker is unreachable. Requests still commits (outbox rows pile up). The relay retries with backoff and publishes when the broker returns.',
+    async run() {
+      setDown('broker', true);
+      log('Broker goes DOWN', 'fail');
+      const ids = [];
+      ids.push(await clientCall());
+      for (const backoff of ['1s', '2s']) {
+        await move('rdb', 'relay', { label: st.queue[0], kind: 'event' });
+        await failAt('relay', 'broker', 'publish');
+        log(`Relay publish failed; row stays in the outbox, retry in ${backoff}`, 'fail');
+        await countdown('relay', 'retry in ' + backoff, 900);
+      }
+      ids.push(await clientCall());
+      log(`Outbox now holds ${st.outbox} unpublished rows. The data is safe in the Requests DB.`, 'retry');
+      setDown('broker', false);
+      log('Broker is back UP', 'ok');
+      for (let i = 0; i < ids.length; i++) await relayPublish();
+      await Promise.all(ids.map(id => deliverBoth(id)));
+      log('Both events delivered. Without the outbox they would have been lost.', 'ok');
+    },
+  },
+  {
+    key: 'retry', name: '4 · Email failing → retry ladder', cls: 'fail',
+    desc: 'The email provider is failing. The consumer retries immediately 3 times, then hands the message back for delayed redelivery with backoff. The provider recovers, and the next redelivery succeeds.',
+    async run() {
+      setDown('email', true);
+      log('Email provider starts failing', 'fail');
+      const id = await clientCall();
+      await relayPublish();
+      await deliverReport(id);
+      await deliverNotification(id, { emailFails: 3 });
+      for (const [stage, wait] of [[3, '1m'], [4, '5m']]) {
+        await move('notifications', 'broker', { label: 'nack → redeliver ' + wait, kind: 'retry' });
+        st.nq++; render();
+        ladder(stage, 'active');
+        log(`Message returned to the broker; delayed redelivery in ${wait}`, 'retry');
+        if (stage === 4) { setDown('email', false); log('(meanwhile the email provider recovers)', 'ok'); }
+        await countdown('broker', `redelivery in ${wait}`, 1600);
+        if (stage === 3) {
+          ladder(stage, 'failed');
+          for (let i = 0; i < 3; i++) ladder(i, '');
+          await deliverNotification(id, { emailFails: 3 });
+        } else {
+          ladder(stage, 'done');
+          for (let i = 0; i < 3; i++) ladder(i, '');
+          await deliverNotification(id);
+        }
+      }
+      log('Delivered on redelivery #2: one email, no duplicates, no loss.', 'ok');
+    },
+  },
+  {
+    key: 'dlq', name: '5 · Retries exhausted → DLQ', cls: 'fail',
+    desc: 'The provider stays down for hours. After the whole ladder the message goes to the dead-letter queue and an alert fires. After the fix, an operator replays it.',
+    async run() {
+      setDown('email', true);
+      log('Email provider is down for hours', 'fail');
+      const id = await clientCall();
+      await relayPublish();
+      await deliverReport(id);
+      await deliverNotification(id, { emailFails: 3 });
+      for (const [stage, wait] of [[3, '1m'], [4, '5m'], [5, '30m'], [6, '2h']]) {
+        await move('notifications', 'broker', { label: 'nack → ' + wait, kind: 'retry' });
+        ladder(stage, 'active');
+        log(`Delayed redelivery in ${wait}`, 'retry');
+        await countdown('broker', `redelivery in ${wait}`, 700);
+        await failAt('broker', 'notifications', id + ' · 3 tries');
+        ladder(stage, 'failed');
+        log(`Redelivery ${wait}: all 3 tries failed`, 'fail');
+      }
+      ladder(7, 'active');
+      await move('broker', 'dlq', { label: id, kind: 'fail' });
+      st.dlq++; render();
+      await flash('dlq', 'fail', 900);
+      log(`${id} moved to the dead-letter queue. Alert: on-call paged.`, 'fail');
+      setDown('email', false);
+      log('Operator fixes the provider config and replays the DLQ', 'ok');
+      await move('dlq', 'broker', { label: 'replay ' + id, kind: 'retry' });
+      st.dlq--; st.nq++; render();
+      ladder(7, 'done');
+      await deliverNotification(id);
+      log('Replayed message delivered. Still exactly one email.', 'ok');
+    },
+  },
+  {
+    key: 'dup', name: '6 · Duplicate delivery → idempotency', cls: 'fail',
+    desc: 'The relay publishes, then crashes before marking the row published. On restart it publishes the same messageId again. Both consumers detect the copy and skip it.',
+    async run() {
+      const id = await clientCall();
+      await relayPublish({ markPublished: false });
+      setDown('relay', true);
+      log('Relay CRASHES before marking the row published', 'fail');
+      await deliverBoth(id);
+      await countdown('relay', 'restarting…', 1000);
+      setDown('relay', false);
+      log(`Relay restarts and sees ${id} still unpublished, so it publishes again`, 'retry');
+      await relayPublish();
+      await Promise.all([deliverNotification(id), deliverReport(id, { duplicate: true })]);
+      log('Delivered at least once, processed once. The user got one email.', 'ok');
+    },
+  },
+  {
+    key: 'breaker', name: '7 · Customers down → circuit breaker', cls: 'fail',
+    desc: 'A sync dependency is down. Requests retries with backoff + jitter, then opens the circuit and fails fast with 503 instead of piling up threads. After the break it half-opens, a trial call succeeds, and the circuit closes.',
+    async run() {
+      setDown('customers', true);
+      log('Customers service goes DOWN', 'fail');
+      log('Client sends POST /requests');
+      await move('client', 'gateway', { label: 'POST /requests', kind: 'sync' });
+      await move('gateway', 'requests', { kind: 'sync' });
+      for (const [i, backoff] of [[1, '~200ms'], [2, '~400ms'], [3, null]]) {
+        await failAt('requests', 'customers', `GET /customers/7 · try ${i}`);
+        log(`Sync try ${i} timed out`, 'fail');
+        if (backoff) await countdown('requests', `backoff ${backoff} + jitter`, 600);
+      }
+      st.breaker = 'OPEN'; render();
+      await flash('requests', 'fail', 800);
+      log('Too many failures: the circuit OPENS for 30s', 'fail');
+      await move('requests', 'gateway', { label: '503 Unavailable', kind: 'fail' });
+      await move('gateway', 'client', { kind: 'fail' });
+      log('Client gets 503 (retryable). No request is half-created.', 'fail');
+      await move('client', 'gateway', { label: 'POST /requests', kind: 'sync' });
+      await move('gateway', 'requests', { kind: 'sync' });
+      await flash('requests', 'fail');
+      await move('requests', 'gateway', { label: '503 fail-fast', kind: 'fail' });
+      await move('gateway', 'client', { kind: 'fail' });
+      log('While OPEN, Requests answers 503 at once without calling Customers', 'skip');
+      setDown('customers', false);
+      await countdown('requests', 'circuit open 30s', 1500);
+      st.breaker = 'HALF-OPEN'; render();
+      log('30s elapsed: the circuit is HALF-OPEN and lets one trial call through', 'retry');
+      const id = await clientCall({ method: 'POST /requests', validate: true });
+      st.breaker = 'CLOSED'; render();
+      log('Trial call succeeded, so the circuit CLOSES', 'ok');
+      await relayPublish();
+      await deliverBoth(id);
+    },
+  },
+];
+
+// ---- controls ----
+const controls = document.getElementById('controls');
+const descEl = document.getElementById('desc');
+const buttons = {};
+for (const sc of scenarios) {
+  const b = document.createElement('button');
+  b.textContent = sc.name;
+  b.className = sc.cls;
+  b.onclick = () => start(sc);
+  controls.appendChild(b);
+  buttons[sc.key] = b;
+}
+const speedLabel = document.createElement('label');
+speedLabel.innerHTML = 'Speed <select id="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>';
+controls.appendChild(speedLabel);
+document.getElementById('speed').onchange = e => { speed = Number(e.target.value); };
+
+async function start(sc) {
+  active.dead = true;
+  active = { dead: false };
+  const run = active;
+  tokenLayer.innerHTML = '';
+  fxLayer.innerHTML = '';
+  logEl.innerHTML = '';
+  for (const id in nodes) { setDown(id, false); nodes[id].g.classList.remove('hl-ok', 'hl-fail', 'hl-retry', 'hl-skip'); }
+  st = { outbox: 0, nq: 0, rq: 0, dlq: 0, breaker: 'CLOSED', queue: [], sent: new Set(), pending: new Set() };
+  render();
+  drawLadder();
+  for (const k in buttons) buttons[k].setAttribute('aria-pressed', String(k === sc.key));
+  descEl.innerHTML = `<b>${sc.name}</b>${sc.desc}`;
+  try {
+    await sc.run();
+  } catch (e) {
+    if (e !== CANCEL) throw e;
+  }
+  if (!run.dead) log('▶ Pick another scenario, or click this one again to replay.');
+}
+
+start(scenarios[0]);
+</script>
+</body>
+</html>
